@@ -116,9 +116,6 @@ def SnowConsequence():
 
     # GDB Paths
     script_folder = os.path.dirname(sys.argv[0])
-    gdb_routes = os.path.join(fgdb_folder, "Data\\", "Telemetry.gdb\\Snow")
-    dissolved_routes_temp = os.path.join(temp_fgdb, "Dissolved")
-    dissolved_routes_dest = os.path.join(gdb_routes, "Dissolved")
 
 
 def main():
