@@ -1,4 +1,4 @@
 # Ignore GDBs
 *.gdb
 # Ignore PyCharm files
-*.idea
+.idea/*

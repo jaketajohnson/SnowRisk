@@ -117,6 +117,38 @@ def SnowConsequence():
     # GDB Paths
     script_folder = os.path.dirname(sys.argv[0])
 
+    # Select based off on factors then apply score
+    # Sum all scores then divide by a denominator determined by total number of non-null scores
+    # Add copy of FC to GDB
+
+    '''For feature in segments,
+    
+    Feature Classification
+    if SNOW_FID <> 'NORTE' AND FC = '7', cof=1
+    if SNOW_FID <> 'NORTE' AND FC = '6', cof=2
+    if SNOW_FID <> 'NORTE' AND FC = '5', cof=3
+    if SNOW_FID <> 'NORTE' AND (FC ='3' OR FC ='4'), cof=4
+    
+    Traffic Annual Average
+    if SNOW_FID <> 'NORTE' AND AADT <= 1899, cof=1
+    if SNOW_FID <> 'NORTE' AND (AADT >= 1900 AND AADT <= 6600), cof=2
+    if SNOW_FID <> 'NORTE' AND (AADT >= 6600 AND AADT <= 11000), cof=3
+    if SNOW_FID <> 'NORTE' AND AADT > 11000, cof=4
+    
+    Bus Routes
+    if SNOW_FID <> 'NORTE' AND SMTD_DAY = '1', cof=3
+    if SNOW_FID <> 'NORTE' AND SMTD_NIGHT = '1', cof=3
+    if SNOW_FID <> 'NORTE' AND SMTD_DAY = '2', cof=4
+    
+    Slope
+    if SNOW_FID <> 'NORTE' AND SNOW_SLOPE < 1.999, cof=1
+    if SNOW_FID <> 'NORTE' AND (SNOW_SLOPE >= 2 AND SNOW_SLOPE <= 3.999), cof=2
+    if SNOW_FID <> 'NORTE' AND (SNOW_SLOPE >= 4 AND SNOW_SLOPE <= 5.999), cof=3
+    if SNOW_FID <> 'NORTE' AND SNOW_SLOPE >= 6, cof=4
+
+
+    '''
+
 
 def main():
     """
