@@ -103,7 +103,6 @@ def is_valid_path(parser, path):
 
 
 def SnowConsequence():
-
     # Environment
     arcpy.env.overwriteOutput = True
     arcpy.parallelProcessingFactor = "7"
@@ -116,38 +115,63 @@ def SnowConsequence():
 
     # GDB Paths
     script_folder = os.path.dirname(sys.argv[0])
+    temp_fgdb = os.path.join(script_folder, "temp.gdb")
+    roadway_information_temp = os.path.join(temp_fgdb, "RoadwayInformation")
 
-    # Select based off on factors then apply score
-    # Sum all scores then divide by a denominator determined by total number of non-null scores
-    # Add copy of FC to GDB
+    # Create a new copy of RoadwayInformation in temp.gdb then move into memory
+    arcpy.DeleteRows_management(roadway_information_temp)
+    arcpy.Append_management(sde_segments, roadway_information_temp, "NO_TEST")
+    arcpy.MakeFeatureLayer_management(roadway_information_temp, "roadway_information_temp")
 
-    '''For feature in segments,
-    
-    Feature Classification
-    if SNOW_FID <> 'NORTE' AND FC = '7', cof=1
-    if SNOW_FID <> 'NORTE' AND FC = '6', cof=2
-    if SNOW_FID <> 'NORTE' AND FC = '5', cof=3
-    if SNOW_FID <> 'NORTE' AND (FC ='3' OR FC ='4'), cof=4
-    
-    Traffic Annual Average
-    if SNOW_FID <> 'NORTE' AND AADT <= 1899, cof=1
-    if SNOW_FID <> 'NORTE' AND (AADT >= 1900 AND AADT <= 6600), cof=2
-    if SNOW_FID <> 'NORTE' AND (AADT >= 6600 AND AADT <= 11000), cof=3
-    if SNOW_FID <> 'NORTE' AND AADT > 11000, cof=4
-    
-    Bus Routes
-    if SNOW_FID <> 'NORTE' AND SMTD_DAY = '1', cof=3
-    if SNOW_FID <> 'NORTE' AND SMTD_NIGHT = '1', cof=3
-    if SNOW_FID <> 'NORTE' AND SMTD_DAY = '2', cof=4
-    
-    Slope
-    if SNOW_FID <> 'NORTE' AND SNOW_SLOPE < 1.999, cof=1
-    if SNOW_FID <> 'NORTE' AND (SNOW_SLOPE >= 2 AND SNOW_SLOPE <= 3.999), cof=2
-    if SNOW_FID <> 'NORTE' AND (SNOW_SLOPE >= 4 AND SNOW_SLOPE <= 5.999), cof=3
-    if SNOW_FID <> 'NORTE' AND SNOW_SLOPE >= 6, cof=4
+    # Calculate individual COF scores based off of fields in the feature layer
 
+    # SMTD Bus Routes
+    routes = [["SNOW_FID = 'NORTE' or (SMTD_DAY = '0' AND SMTD_NIGHT = '0')", "0"],  # 0 - No SMTD bus routes
+              ["SNOW_FID <> 'NORTE' AND (SMTD_DAY = '1' OR SMTD_NIGHT = '1')", "3"],   # 3 - Regular day/night SMTD bus routes
+              ["SNOW_FID <> 'NORTE' AND SMTD_DAY = '2'", "4"]]  # 4 - Special day SMTD bus routes like exchange areas
+    for route in routes:
+        selection = arcpy.SelectLayerByAttribute_management("roadway_information_temp", "NEW_SELECTION", route[0])
+        arcpy.CalculateField_management(selection, "COF_SMTD", route[1], "PYTHON3")
 
-    '''
+    # Functional Classifications
+    classifications = [["SNOW_FID = 'NORTE'", "0"],  # 0 - NORTE
+                       ["SNOW_FID <> 'NORTE' AND FC = '7'", "1"],  # 1  - Local road or street
+                       ["SNOW_FID <> 'NORTE' AND FC = '6'", "2"],  # 2 - Minor collector
+                       ["SNOW_FID <> 'NORTE' AND FC = '5'", "3"],  # 3 - Major collector
+                       ["SNOW_FID <> 'NORTE' AND (FC = '4' or FC='3')", "4"]]  # 4 - Arterials
+    for classification in classifications:
+        selection = arcpy.SelectLayerByAttribute_management("roadway_information_temp", "NEW_SELECTION", classification[0])
+        arcpy.CalculateField_management(selection, "COF_FC", classification[1], "PYTHON3")
+
+    # Slopes
+    slopes = [["SNOW_FID = 'NORTE'", "0"],  # 0 - NORTE
+              ["SNOW_FID <> 'NORTE' AND SNOW_SLOPE < 1.999", "1"],  # 1 - 0-2%
+              ["SNOW_FID <> 'NORTE' AND (SNOW_SLOPE >= 2 AND SNOW_SLOPE <= 3.999)", "2"],  # 2 - 2-4%
+              ["SNOW_FID <> 'NORTE' AND (SNOW_SLOPE >= 4 AND SNOW_SLOPE <= 5.999)", "3"],  # 3 - 4-6%
+              ["SNOW_FID <> 'NORTE' AND SNOW_SLOPE >= 6", "4"]]  # 4 - 6%+
+    for slope in slopes:
+        selection = arcpy.SelectLayerByAttribute_management("roadway_information_temp", "NEW_SELECTION", slope[0])
+        arcpy.CalculateField_management(selection, "COF_SLOPE", slope[1], "PYTHON3")
+
+    # Traffic Annual Averages (AADT)
+    averages = [["SNOW_FID = 'NORTE'", "0"],  # 0 - NORTE
+                ["SNOW_FID <> 'NORTE' AND AADT <= 1899", "1"],  # 1 - Less than 1900
+                ["SNOW_FID <> 'NORTE' AND (AADT >= 1900 AND AADT <= 6600)", "2"],  # 2 - 1900-6600
+                ["SNOW_FID <> 'NORTE' AND (AADT >= 6600 AND AADT <= 11000)", "3"],  # 3 - 6600-11000
+                ["SNOW_FID <> 'NORTE' AND AADT > 11000", "4"]]  # 4 - 11000+
+    for average in averages:
+        selection = arcpy.SelectLayerByAttribute_management("roadway_information_temp", "NEW_SELECTION", average[0])
+        arcpy.CalculateField_management(selection, "COF_AADT", average[1], "PYTHON3")
+
+    #  Clear last selection
+    arcpy.SelectLayerByAttribute_management("roadway_information_temp", "CLEAR_SELECTION")
+
+    # Calculate Total COF Score using the previous four calculated fields
+    arcpy.CalculateField_management("roadway_information_temp", "COF", "!COF_SMTD! + !COF_FC! + !COF_SLOPE! + !COF_AADT!", "PYTHON3")
+
+    # Delete and append new data to the SDE
+    arcpy.DeleteRows_management(roadway_information_temp)
+    arcpy.Append_management("roadway_information_temp", roadway_information_temp, "NO_TEST")
 
 
 def main():
