@@ -109,19 +109,31 @@ def SnowConsequence():
     arcpy.SetLogHistory(False)
 
     # Paths
-    fgdb_folder = r"F:\Shares\FGDB_Services"
-    imspfld_sde = os.path.join(fgdb_folder, r"DatabaseConnections\COSPW@imSPFLD@MCWINTCWDB.sde")
-    sde_segments = os.path.join(imspfld_sde, r"imSPFLD.COSPW.FacilitiesStreets\imSPFLD.COSPW.RoadwayInformation")
+    fgdb_folder = r"Z:\Data"
+    imspfld_sde = os.path.join(fgdb_folder, r"RoadwayInfo.gdb")
+    sde_segments = os.path.join(imspfld_sde, r"FacilitiesStreets\RoadwayInformation")
 
     # GDB Paths
     script_folder = os.path.dirname(sys.argv[0])
     temp_fgdb = os.path.join(script_folder, "temp.gdb")
-    roadway_information_temp = os.path.join(temp_fgdb, "RoadwayInformation")
+    roadway_information_temp = os.path.join(temp_fgdb, "SnowCOF")
 
-    # Create a new copy of RoadwayInformation in temp.gdb then move into memory
-    arcpy.DeleteRows_management(roadway_information_temp)
-    arcpy.Append_management(sde_segments, roadway_information_temp, "NO_TEST")
-    arcpy.MakeFeatureLayer_management(roadway_information_temp, "roadway_information_temp")
+    # Transfer data from RoadwayInformation into SnowCOF then move into memory for processing
+    arcpy.Append_management(sde_segments, roadway_information_temp, "NO_TEST",
+                            'FC "Functional Classification" true true false 1 Text 0 0,First,#,RoadwayInformation,FC,0,1;AADT "Annual Average Daily Traffic" true true false 8 Double 0 0,First,#,'
+                            'RoadwayInformation,AADT,-1,-1;AADT_YR "AADT Year" true true false 4 Text 0 0,First,#,RoadwayInformation,AADT_YR,0,4;SNOW_FID "Snow Route Identifier" true true false 7 Text 0 0,First,'
+                            '#,RoadwayInformation,SNOW_FID,0,7;SNOW_DIST "Snow District" true true false 3 Text 0 0,First,#,RoadwayInformation,SNOW_DIST,0,3;SNOW_TYPE "Snow Type (Priority)" true true false 1 Text '
+                            '0 0,First,#,RoadwayInformation,SNOW_TYPE,0,1;SNOW__RT_NBR "Snow Route Number" true true false 10 Text 0 0,First,#,RoadwayInformation,SNOW__RT_NBR,0,10;SNOW_TRBL "Snow Trouble Spot '
+                            'Justification" true true false 2 Text 0 0,First,#,RoadwayInformation,SNOW_TRBL,0,2;SNOW_SLOPE "Calculated Profile Grade" true true false 8 Double 0 0,First,#,RoadwayInformation,'
+                            'SNOW_SLOPE,-1,-1;SMTD_DAY "SMTD Day Service" true true false 1 Text 0 0,First,#,RoadwayInformation,SMTD_DAY,0,1;SMTD_NIGHT "SMTD Night Service" true true false 1 Text 0 0,First,#,'
+                            'RoadwayInformation,SMTD_NIGHT,0,1;SMTD_SUPPL "SMTD Supplemental Service" true true false 1 Text 0 0,First,#,RoadwayInformation,SMTD_SUPPL,0,1;D186_AM "School Bus Morning Route" true '
+                            'true false 1 Text 0 0,First,#,RoadwayInformation,D186_AM,0,1;D186_PM "School Bus Afternoon Route" true true false 1 Text 0 0,First,#,RoadwayInformation,D186_PM,0,1;GlobalID "GlobalID" '
+                            'false false false 38 GlobalID 0 0,First,#,RoadwayInformation,GlobalID,-1,-1;COF_SMTD "COF Score for SMTD Bus Routes" true true false 2 Short 0 0,First,#,RoadwayInformation,COF_SMTD,'
+                            '-1,-1;COF_FC "COF Score for Functional Classification" true true false 2 Short 0 0,First,#,RoadwayInformation,COF_FC,-1,-1;COF_SLOPE "COF Score for Slope" true true false 2 Short 0 0,'
+                            'First,#,RoadwayInformation,COF_SLOPE,-1,-1;COF_AADT "COF Score for AADT" true true false 2 Short 0 0,First,#,RoadwayInformation,COF_AADT,-1,-1;COF "Total COF Score" true true false 2 '
+                            'Short 0 0,First,#,RoadwayInformation,COF,-1,-1',
+                            '', '')
+    arcpy.MakeFeatureLayer_management(roadway_information_temp, "roadway_information_mem")
 
     # Calculate individual COF scores based off of fields in the feature layer
 
@@ -130,7 +142,7 @@ def SnowConsequence():
               ["SNOW_FID <> 'NORTE' AND (SMTD_DAY = '1' OR SMTD_NIGHT = '1')", "3"],   # 3 - Regular day/night SMTD bus routes
               ["SNOW_FID <> 'NORTE' AND SMTD_DAY = '2'", "4"]]  # 4 - Special day SMTD bus routes like exchange areas
     for route in routes:
-        selection = arcpy.SelectLayerByAttribute_management("roadway_information_temp", "NEW_SELECTION", route[0])
+        selection = arcpy.SelectLayerByAttribute_management("roadway_information_mem", "NEW_SELECTION", route[0])
         arcpy.CalculateField_management(selection, "COF_SMTD", route[1], "PYTHON3")
 
     # Functional Classifications
@@ -140,7 +152,7 @@ def SnowConsequence():
                        ["SNOW_FID <> 'NORTE' AND FC = '5'", "3"],  # 3 - Major collector
                        ["SNOW_FID <> 'NORTE' AND (FC = '4' or FC='3')", "4"]]  # 4 - Arterials
     for classification in classifications:
-        selection = arcpy.SelectLayerByAttribute_management("roadway_information_temp", "NEW_SELECTION", classification[0])
+        selection = arcpy.SelectLayerByAttribute_management("roadway_information_mem", "NEW_SELECTION", classification[0])
         arcpy.CalculateField_management(selection, "COF_FC", classification[1], "PYTHON3")
 
     # Slopes
@@ -150,7 +162,7 @@ def SnowConsequence():
               ["SNOW_FID <> 'NORTE' AND (SNOW_SLOPE >= 4 AND SNOW_SLOPE <= 5.999)", "3"],  # 3 - 4-6%
               ["SNOW_FID <> 'NORTE' AND SNOW_SLOPE >= 6", "4"]]  # 4 - 6%+
     for slope in slopes:
-        selection = arcpy.SelectLayerByAttribute_management("roadway_information_temp", "NEW_SELECTION", slope[0])
+        selection = arcpy.SelectLayerByAttribute_management("roadway_information_mem", "NEW_SELECTION", slope[0])
         arcpy.CalculateField_management(selection, "COF_SLOPE", slope[1], "PYTHON3")
 
     # Traffic Annual Averages (AADT)
@@ -160,18 +172,15 @@ def SnowConsequence():
                 ["SNOW_FID <> 'NORTE' AND (AADT >= 6600 AND AADT <= 11000)", "3"],  # 3 - 6600-11000
                 ["SNOW_FID <> 'NORTE' AND AADT > 11000", "4"]]  # 4 - 11000+
     for average in averages:
-        selection = arcpy.SelectLayerByAttribute_management("roadway_information_temp", "NEW_SELECTION", average[0])
+        selection = arcpy.SelectLayerByAttribute_management("roadway_information_mem", "NEW_SELECTION", average[0])
         arcpy.CalculateField_management(selection, "COF_AADT", average[1], "PYTHON3")
 
-    #  Clear last selection
-    arcpy.SelectLayerByAttribute_management("roadway_information_temp", "CLEAR_SELECTION")
+    # Clear last selection
+    arcpy.SelectLayerByAttribute_management("roadway_information_mem", "CLEAR_SELECTION")
 
-    # Calculate Total COF Score using the previous four calculated fields
-    arcpy.CalculateField_management("roadway_information_temp", "COF", "!COF_SMTD! + !COF_FC! + !COF_SLOPE! + !COF_AADT!", "PYTHON3")
-
-    # Delete and append new data to the SDE
-    arcpy.DeleteRows_management(roadway_information_temp)
-    arcpy.Append_management("roadway_information_temp", roadway_information_temp, "NO_TEST")
+    # Calculate Total COF Score using the previous four calculated fields, then calculate average
+    arcpy.CalculateField_management("roadway_information_mem", "COF", "!COF_SMTD! + !COF_FC! + !COF_SLOPE! + !COF_AADT!", "PYTHON3")
+    arcpy.CalculateField_management("roadway_information_mem", "COF", "!COF!/4", "PYTHON3")
 
 
 def main():
@@ -180,7 +189,7 @@ def main():
     """
     # Make a few variables to use
     # script_folder = os.path.dirname(sys.argv[0])
-    log_file_folder = r"C:\Scripts\SnowCOF\Log_Files"
+    log_file_folder = r"C:\Scripts\SnowCOF\Log_files"
     script_name_no_ext = os.path.splitext(os.path.basename(sys.argv[0]))[0]
     log_file = os.path.join(log_file_folder, "{}.log".format(script_name_no_ext))
     logger = None
