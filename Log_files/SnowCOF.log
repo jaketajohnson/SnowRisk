@@ -1,4 +1,33 @@
-2019-11-25 14:53:15 - INFO - 
-2019-11-25 14:53:15 - INFO - --- Script Execution Started ---
-2019-11-25 14:53:42 - INFO - Completed SnowConsequences processing
-2019-11-25 14:53:42 - INFO - --- Script Execution Completed ---
+2019-11-27 10:05:12 - INFO - 
+2019-11-27 10:05:12 - INFO - --- Script Execution Started ---
+2019-11-27 10:05:44 - INFO - Completed SnowConsequences processing
+2019-11-27 10:05:44 - INFO - --- Script Execution Completed ---
+2019-11-27 10:09:19 - INFO - 
+2019-11-27 10:09:19 - INFO - --- Script Execution Started ---
+2019-11-27 10:09:52 - ERROR - Traceback (most recent call last):
+  File "C:\Scripts\SnowCOF\SnowCOF.py", line 284, in main
+    SnowConsequence()
+  File "C:\Scripts\SnowCOF\SnowCOF.py", line 260, in SnowConsequence
+    arcpy.Append_management(roadway_information_mem, roadway_information_temp, "NO_TEST")
+  File "C:\Program Files\ArcGIS\Pro\Resources\ArcPy\arcpy\management.py", line 4929, in Append
+    raise e
+  File "C:\Program Files\ArcGIS\Pro\Resources\ArcPy\arcpy\management.py", line 4926, in Append
+    retval = convertArcObjectToPythonObject(gp.Append_management(*gp_fixargs((inputs, target, schema_type, field_mapping, subtype, expression), True)))
+  File "C:\Program Files\ArcGIS\Pro\Resources\ArcPy\arcpy\geoprocessing\_base.py", line 506, in <lambda>
+    return lambda *args: val(*gp_fixargs(args, True))
+arcgisscripting.ExecuteError: Failed to execute. Parameters are not valid.
+ERROR 000670: output Target Dataset is same as input Input Datasets
+Failed to execute (Append).
+
+
+2019-11-27 10:09:52 - INFO - --- Script Execution Completed ---
+2019-11-27 10:10:31 - INFO - 
+2019-11-27 10:10:31 - INFO - --- Script Execution Started ---
+2019-11-27 10:11:09 - INFO - 
+2019-11-27 10:11:09 - INFO - --- Script Execution Started ---
+2019-11-27 10:11:45 - INFO - Completed SnowConsequences processing
+2019-11-27 10:11:45 - INFO - --- Script Execution Completed ---
+2019-12-04 11:43:02 - INFO - 
+2019-12-04 11:43:02 - INFO - --- Script Execution Started ---
+2019-12-04 11:43:42 - INFO - Completed SnowConsequences processing
+2019-12-04 11:43:42 - INFO - --- Script Execution Completed ---
