@@ -135,26 +135,14 @@ def SnowRisk():
                                                         r'SNOW__RT_NBR "Snow Route Number" true true false 10 Text 0 0,First,#,RoadwayInformation,SNOW__RT_NBR,0,10;'
                                                         r'SNOW_TRBL "Snow Trouble Spot Justification" true true false 2 Text 0 0,First,#,RoadwayInformation,SNOW_TRBL,0,2;'
                                                         r'SNOW_SLOPE "Calculated Profile Grade" true true false 8 Double 0 0,First,#,RoadwayInformation,SNOW_SLOPE,-1,-1;'
-                                                        r'SNOW_TIME "Calculated Plow-time ( E-E based on Lane Miles)" true true false 8 Double 0 0,First,#,RoadwayInformation,SNOW_TIME,-1,-1;'
+                                                        r'SNOW_TIME "Calculated Plow-time (E-E based on Lane Miles)" true true false 8 Double 0 0,First,#,RoadwayInformation,SNOW_TIME,-1,-1;'
                                                         r'SMTD_DAY "SMTD Day Service" true true false 1 Text 0 0,First,#,RoadwayInformation,SMTD_DAY,0,1;'
                                                         r'SMTD_NIGHT "SMTD Night Service" true true false 1 Text 0 0,First,#,RoadwayInformation,SMTD_NIGHT,0,1;'
                                                         r'SMTD_SUPPL "SMTD Supplemental Service" true true false 1 Text 0 0,First,#,RoadwayInformation,SMTD_SUPPL,0,1;'
                                                         r'NUMB1 "Number 1" true true false 8 Double 0 0,First,#,RoadwayInformation,NUMB1,-1,-1;'
-                                                        r'COF_SMTD "COF Score for SMTD Bus Routes" true true false 2 Short 0 0,First,#;'
-                                                        r'COF_FC "COF Score for Functional Classification" true true false 2 Short 0 0,First,#;'
-                                                        r'COF_SLOPE "COF Score for Slope" true true false 2 Short 0 0,First,#;'
-                                                        r'COF_AADT "COF Score for AADT" true true false 2 Short 0 0,First,#;'
-                                                        r'COF "Total COF Score" true true false 2 Short 0 0,First,#;'
-                                                        r'COF_TRBL "COF Score for Trouble Spot Justifications" true true false 2 Short 0 0,First,#;'
-                                                        r'COF_CRASH "COF Score for Crash Totals" true true false 2 Short 0 0,First,#;'
-                                                        r'COF_SURF "COF Score for Surface Types (and not surfing)" true true false 4 Long 0 0,First,#;'
-                                                        r'COF_AVG "Average COF Score" true true false 8 Double 0 0,First,#;'
-                                                        r'POF_SALT "POF Score for Time to Salt Dome" true true false 2 Short 0 0,First,#;'
-                                                        r'POF_FLEET "POF Score for Time to Fleet Facility" true true false 2 Short 0 0,First,#;'
                                                         r'LNS "Through Lane Count" true true false 8 Double 0 0,First,#,RoadwayInformation,LNS,-1,-1;'
                                                         r'LN_SPC_NBR "Special Lane Count" true true false 8 Double 0 0,First,#,RoadwayInformation,LN_SPC_NBR,-1,-1;'
-                                                        r'LN_TOTAL "Total Lane Count" true true false 8 Double 0 0,First,#;'
-                                                        r'POF_LANES "POF Score for Lane Count" true true false 8 Double 0 0,First,#', '')
+                                                        r'LN_MILES "Total Lane Miles" true true false 8 Double 0 0,First,#,RoadwayInformation,LN_TOTALMI,-1,-1', '')
             # Add fields to the new table
             arcpy.AddFields_management(snow_risk,
                                        [["COF_TRBL", "SHORT", None, "COF Score for Trouble Spot Justifications"],
@@ -184,26 +172,14 @@ def SnowRisk():
                                     r'SNOW__RT_NBR "Snow Route Number" true true false 10 Text 0 0,First,#,RoadwayInformation,SNOW__RT_NBR,0,10;'
                                     r'SNOW_TRBL "Snow Trouble Spot Justification" true true false 2 Text 0 0,First,#,RoadwayInformation,SNOW_TRBL,0,2;'
                                     r'SNOW_SLOPE "Calculated Profile Grade" true true false 8 Double 0 0,First,#,RoadwayInformation,SNOW_SLOPE,-1,-1;'
-                                    r'SNOW_TIME "Calculated Plow-time ( E-E based on Lane Miles)" true true false 8 Double 0 0,First,#,RoadwayInformation,SNOW_TIME,-1,-1;'
+                                    r'SNOW_TIME "Calculated Plow-time (E-E based on Lane Miles)" true true false 8 Double 0 0,First,#,RoadwayInformation,SNOW_TIME,-1,-1;'
                                     r'SMTD_DAY "SMTD Day Service" true true false 1 Text 0 0,First,#,RoadwayInformation,SMTD_DAY,0,1;'
                                     r'SMTD_NIGHT "SMTD Night Service" true true false 1 Text 0 0,First,#,RoadwayInformation,SMTD_NIGHT,0,1;'
                                     r'SMTD_SUPPL "SMTD Supplemental Service" true true false 1 Text 0 0,First,#,RoadwayInformation,SMTD_SUPPL,0,1;'
                                     r'NUMB1 "Number 1" true true false 8 Double 0 0,First,#,RoadwayInformation,NUMB1,-1,-1;'
-                                    r'COF_SMTD "COF Score for SMTD Bus Routes" true true false 2 Short 0 0,First,#;'
-                                    r'COF_FC "COF Score for Functional Classification" true true false 2 Short 0 0,First,#;'
-                                    r'COF_SLOPE "COF Score for Slope" true true false 2 Short 0 0,First,#;'
-                                    r'COF_AADT "COF Score for AADT" true true false 2 Short 0 0,First,#;'
-                                    r'COF "Total COF Score" true true false 2 Short 0 0,First,#;'
-                                    r'COF_TRBL "COF Score for Trouble Spot Justifications" true true false 2 Short 0 0,First,#;'
-                                    r'COF_CRASH "COF Score for Crash Totals" true true false 2 Short 0 0,First,#;'
-                                    r'COF_SURF "COF Score for Surface Types (and not surfing)" true true false 4 Long 0 0,First,#;'
-                                    r'COF_AVG "Average COF Score" true true false 8 Double 0 0,First,#;'
-                                    r'POF_SALT "POF Score for Time to Salt Dome" true true false 2 Short 0 0,First,#;'
-                                    r'POF_FLEET "POF Score for Time to Fleet Facility" true true false 2 Short 0 0,First,#;'
                                     r'LNS "Through Lane Count" true true false 8 Double 0 0,First,#,RoadwayInformation,LNS,-1,-1;'
                                     r'LN_SPC_NBR "Special Lane Count" true true false 8 Double 0 0,First,#,RoadwayInformation,LN_SPC_NBR,-1,-1;'
-                                    r'LN_TOTAL "Total Lane Count" true true false 8 Double 0 0,First,#;'
-                                    r'POF_LANES "POF Score for Lane Count" true true false 8 Double 0 0,First,#', '', '')
+                                    r'LN_MILES "Total Lane Miles" true true false 8 Double 0 0,First,#,RoadwayInformation,LN_TOTALMI,-1,-1', '', '')
 
         # Create a temporary SnowCOF layer to work with, prevents the error of using the same data source for future appends
         if not arcpy.Exists(snow_risk_temp):

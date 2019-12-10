@@ -10,3 +10,57 @@
 2019-12-10 07:52:00 - INFO - --- Script Execution Started ---
 2019-12-10 07:53:21 - INFO - Completed SnowRisk processing
 2019-12-10 07:53:21 - INFO - --- Script Execution Completed ---
+2019-12-10 09:36:43 - INFO - 
+2019-12-10 09:36:43 - INFO - --- Script Execution Started ---
+2019-12-10 09:38:05 - ERROR - Traceback (most recent call last):
+  File "C:\Scripts\SnowCOF\SnowRisk.py", line 379, in main
+    SnowRisk()
+  File "C:\Scripts\SnowCOF\SnowRisk.py", line 355, in SnowRisk
+    finalize()
+  File "C:\Scripts\SnowCOF\SnowRisk.py", line 348, in finalize
+    arcpy.DeleteRows_management(snow_risk)
+  File "C:\Program Files\ArcGIS\Pro\Resources\ArcPy\arcpy\management.py", line 19262, in DeleteRows
+    raise e
+  File "C:\Program Files\ArcGIS\Pro\Resources\ArcPy\arcpy\management.py", line 19259, in DeleteRows
+    retval = convertArcObjectToPythonObject(gp.DeleteRows_management(*gp_fixargs((in_rows,), True)))
+  File "C:\Program Files\ArcGIS\Pro\Resources\ArcPy\arcpy\geoprocessing\_base.py", line 506, in <lambda>
+    return lambda *args: val(*gp_fixargs(args, True))
+arcgisscripting.ExecuteError: ERROR 999999: Something unexpected caused the tool to fail. Contact Esri Technical Support (http://esriurl.com/support) to Report a Bug, and refer to the error help for potential solutions or workarounds.
+Cannot acquire a lock.
+Cannot acquire a lock.
+Failed to execute (DeleteRows).
+
+
+2019-12-10 09:38:05 - INFO - --- Script Execution Completed ---
+2019-12-10 09:40:01 - INFO - 
+2019-12-10 09:40:01 - INFO - --- Script Execution Started ---
+2019-12-10 09:40:09 - ERROR - Traceback (most recent call last):
+  File "C:\Scripts\SnowCOF\SnowRisk.py", line 379, in main
+    SnowRisk()
+  File "C:\Scripts\SnowCOF\SnowRisk.py", line 352, in SnowRisk
+    initialize()
+  File "C:\Scripts\SnowCOF\SnowRisk.py", line 202, in initialize
+    arcpy.DeleteRows_management(snow_risk_temp)
+  File "C:\Program Files\ArcGIS\Pro\Resources\ArcPy\arcpy\management.py", line 19262, in DeleteRows
+    raise e
+  File "C:\Program Files\ArcGIS\Pro\Resources\ArcPy\arcpy\management.py", line 19259, in DeleteRows
+    retval = convertArcObjectToPythonObject(gp.DeleteRows_management(*gp_fixargs((in_rows,), True)))
+  File "C:\Program Files\ArcGIS\Pro\Resources\ArcPy\arcpy\geoprocessing\_base.py", line 506, in <lambda>
+    return lambda *args: val(*gp_fixargs(args, True))
+arcgisscripting.ExecuteError: ERROR 999999: Something unexpected caused the tool to fail. Contact Esri Technical Support (http://esriurl.com/support) to Report a Bug, and refer to the error help for potential solutions or workarounds.
+Cannot acquire a lock.
+Cannot acquire a lock.
+Failed to execute (DeleteRows).
+
+
+2019-12-10 09:40:09 - INFO - --- Script Execution Completed ---
+2019-12-10 09:40:56 - INFO - 
+2019-12-10 09:40:56 - INFO - --- Script Execution Started ---
+2019-12-10 09:41:12 - INFO - 
+2019-12-10 09:41:12 - INFO - --- Script Execution Started ---
+2019-12-10 09:42:34 - INFO - Completed SnowRisk processing
+2019-12-10 09:42:34 - INFO - --- Script Execution Completed ---
+2019-12-10 09:54:04 - INFO - 
+2019-12-10 09:54:04 - INFO - --- Script Execution Started ---
+2019-12-10 09:55:26 - INFO - Completed SnowRisk processing
+2019-12-10 09:55:26 - INFO - --- Script Execution Completed ---
