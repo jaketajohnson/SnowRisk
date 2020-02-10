@@ -18,6 +18,7 @@ import logging
 import os
 import sys
 import traceback
+import math
 from logging.handlers import RotatingFileHandler
 
 
@@ -109,81 +110,46 @@ def SnowRisk():
     arcpy.SetLogHistory(False)
 
     # Paths
-    fgdb_folder = r"Z:\Data"
-    imspfld_sde = os.path.join(fgdb_folder, r"RoadwayInfo.gdb")
+    roadway_folder = r"Z:\Data"
+    gdb_folder = r"F:"
+    imspfld_sde = os.path.join(roadway_folder, r"RoadwayInfo.gdb")
     roadway_information = os.path.join(imspfld_sde, r"FacilitiesStreets\RoadwayInformation")
+    services = os.path.join(gdb_folder, r"Shares\FGDB_Services\Data")
 
     # GDB Paths
-    script_folder = os.path.dirname(sys.argv[0])
-    temp_fgdb = os.path.join(script_folder, "temp.gdb")  # temp fgdb
-    snow_risk_temp = os.path.join(temp_fgdb, "SnowRisk_temp")  # Temp output in temp GDB
+    risk_gdb = os.path.join(services, "SnowRisk.gdb")  # temp fgdb
+    snow_risk_temp = os.path.join(risk_gdb, "SnowRisk_temp")  # Temp output in temp GDB
     snow_risk_mem = r"memory\roadway_information_mem"  # Memory output in temp GDB
-    snow_risk = os.path.join(temp_fgdb, "SnowRisk")  # Final output in temp GDBs
+    snow_risk = os.path.join(risk_gdb, "SnowRisk")  # Final output in temp GDBs
 
-    # Check to see if SnowCOF exists. If not, create it using SDE data. If so, append SDE data to the table
     def initialize():
-        if not arcpy.Exists(snow_risk):
-            arcpy.FeatureClassToFeatureClass_conversion(roadway_information, temp_fgdb, "SnowRisk", '',
-                                                        r'ROAD_NAME "Street Name" true true false 75 Text 0 0,First,#,RoadwayInformation,ROAD_NAME,0,75;'
-                                                        r'FC "Functional Classification" true true false 1 Text 0 0,First,#,RoadwayInformation,FC,0,1;'
-                                                        r'AADT "Annual Average Daily Traffic" true true false 8 Double 0 0,First,#,RoadwayInformation,AADT,-1,-1;'
-                                                        r'AADT_YR "AADT Year" true true false 4 Text 0 0,First,#,RoadwayInformation,AADT_YR,0,4;'
-                                                        r'SURF_TYP "Original Surface Type" true true false 50 Text 0 0,First,#,RoadwayInformation,SURF_TYP,0,50;'
-                                                        r'SNOW_FID "Snow Route Identifier" true true false 7 Text 0 0,First,#,RoadwayInformation,SNOW_FID,0,7;'
-                                                        r'SNOW_DIST "Snow District" true true false 3 Text 0 0,First,#,RoadwayInformation,SNOW_DIST,0,3;'
-                                                        r'SNOW_TYPE "Snow Type (Priority)" true true false 1 Text 0 0,First,#,RoadwayInformation,SNOW_TYPE,0,1;'
-                                                        r'SNOW__RT_NBR "Snow Route Number" true true false 10 Text 0 0,First,#,RoadwayInformation,SNOW__RT_NBR,0,10;'
-                                                        r'SNOW_TRBL "Snow Trouble Spot Justification" true true false 2 Text 0 0,First,#,RoadwayInformation,SNOW_TRBL,0,2;'
-                                                        r'SNOW_SLOPE "Calculated Profile Grade" true true false 8 Double 0 0,First,#,RoadwayInformation,SNOW_SLOPE,-1,-1;'
-                                                        r'SNOW_TIME "Calculated Plow-time (E-E based on Lane Miles)" true true false 8 Double 0 0,First,#,RoadwayInformation,SNOW_TIME,-1,-1;'
-                                                        r'SMTD_DAY "SMTD Day Service" true true false 1 Text 0 0,First,#,RoadwayInformation,SMTD_DAY,0,1;'
-                                                        r'SMTD_NIGHT "SMTD Night Service" true true false 1 Text 0 0,First,#,RoadwayInformation,SMTD_NIGHT,0,1;'
-                                                        r'SMTD_SUPPL "SMTD Supplemental Service" true true false 1 Text 0 0,First,#,RoadwayInformation,SMTD_SUPPL,0,1;'
-                                                        r'NUMB1 "Number 1" true true false 8 Double 0 0,First,#,RoadwayInformation,NUMB1,-1,-1;'
-                                                        r'LNS "Through Lane Count" true true false 8 Double 0 0,First,#,RoadwayInformation,LNS,-1,-1;'
-                                                        r'LN_SPC_NBR "Special Lane Count" true true false 8 Double 0 0,First,#,RoadwayInformation,LN_SPC_NBR,-1,-1;'
-                                                        r'LN_MILES "Total Lane Miles" true true false 8 Double 0 0,First,#,RoadwayInformation,LN_TOTALMI,-1,-1', '')
-            # Add fields to the new table
-            arcpy.AddFields_management(snow_risk,
-                                       [["COF_TRBL", "SHORT", None, "COF Score for Trouble Spot Justifications"],
-                                        ["COF_CRASH", "SHORT", None, "COF Score for Crash Totals"],
-                                        ["COF_SURF", "SHORT", None, "COF Score for Surface Types (and not surfing)"],
-                                        ["COF_AVG", "DOUBLE", None, "Average COF Score"],
-                                        ["POF_SALT", "DOUBLE", None, "POF Score for Time to Salt Dome"],
-                                        ["POF_FLEET", "DOUBLE", None, "POF Score for Time to Fleet Facility"],
-                                        ["LNS", "DOUBLE", None, "Through Lane Count"],
-                                        ["LN_SPC_NBR", "DOUBLE", None, "Special Lane Count"],
-                                        ["LN_TOTAL", "DOUBLE", None, "Total Lane Count"],
-                                        ["POF_LANES", "DOUBLE", None, "POF Score for Late Count"],
-                                        ["POF_TOTAL", "DOUBLE", None, "Total POF"],
-                                        ["POF_AVG", "DOUBLE", None, "Average POF"],
-                                        ["RISK", "DOUBLE", None, "Risk"]])
-        else:
-            arcpy.DeleteRows_management(snow_risk)
-            arcpy.Append_management(roadway_information, snow_risk, "NO_TEST",
-                                    r'ROAD_NAME "Street Name" true true false 75 Text 0 0,First,#,RoadwayInformation,ROAD_NAME,0,75;'
-                                    r'FC "Functional Classification" true true false 1 Text 0 0,First,#,RoadwayInformation,FC,0,1;'
-                                    r'AADT "Annual Average Daily Traffic" true true false 8 Double 0 0,First,#,RoadwayInformation,AADT,-1,-1;'
-                                    r'AADT_YR "AADT Year" true true false 4 Text 0 0,First,#,RoadwayInformation,AADT_YR,0,4;'
-                                    r'SURF_TYP "Original Surface Type" true true false 50 Text 0 0,First,#,RoadwayInformation,SURF_TYP,0,50;'
-                                    r'SNOW_FID "Snow Route Identifier" true true false 7 Text 0 0,First,#,RoadwayInformation,SNOW_FID,0,7;'
-                                    r'SNOW_DIST "Snow District" true true false 3 Text 0 0,First,#,RoadwayInformation,SNOW_DIST,0,3;'
-                                    r'SNOW_TYPE "Snow Type (Priority)" true true false 1 Text 0 0,First,#,RoadwayInformation,SNOW_TYPE,0,1;'
-                                    r'SNOW__RT_NBR "Snow Route Number" true true false 10 Text 0 0,First,#,RoadwayInformation,SNOW__RT_NBR,0,10;'
-                                    r'SNOW_TRBL "Snow Trouble Spot Justification" true true false 2 Text 0 0,First,#,RoadwayInformation,SNOW_TRBL,0,2;'
-                                    r'SNOW_SLOPE "Calculated Profile Grade" true true false 8 Double 0 0,First,#,RoadwayInformation,SNOW_SLOPE,-1,-1;'
-                                    r'SNOW_TIME "Calculated Plow-time (E-E based on Lane Miles)" true true false 8 Double 0 0,First,#,RoadwayInformation,SNOW_TIME,-1,-1;'
-                                    r'SMTD_DAY "SMTD Day Service" true true false 1 Text 0 0,First,#,RoadwayInformation,SMTD_DAY,0,1;'
-                                    r'SMTD_NIGHT "SMTD Night Service" true true false 1 Text 0 0,First,#,RoadwayInformation,SMTD_NIGHT,0,1;'
-                                    r'SMTD_SUPPL "SMTD Supplemental Service" true true false 1 Text 0 0,First,#,RoadwayInformation,SMTD_SUPPL,0,1;'
-                                    r'NUMB1 "Number 1" true true false 8 Double 0 0,First,#,RoadwayInformation,NUMB1,-1,-1;'
-                                    r'LNS "Through Lane Count" true true false 8 Double 0 0,First,#,RoadwayInformation,LNS,-1,-1;'
-                                    r'LN_SPC_NBR "Special Lane Count" true true false 8 Double 0 0,First,#,RoadwayInformation,LN_SPC_NBR,-1,-1;'
-                                    r'LN_MILES "Total Lane Miles" true true false 8 Double 0 0,First,#,RoadwayInformation,LN_TOTALMI,-1,-1', '', '')
+
+        # Clear snow_risk and repopulate
+        arcpy.DeleteRows_management(snow_risk)
+        arcpy.Append_management(roadway_information, snow_risk, "NO_TEST",
+                                r'ROAD_NAME "Street Name" true true false 75 Text 0 0,First,#,RoadwayInformation,ROAD_NAME,0,75;'
+                                r'FC "Functional Classification" true true false 1 Text 0 0,First,#,RoadwayInformation,FC,0,1;'
+                                r'AADT "Annual Average Daily Traffic" true true false 8 Double 0 0,First,#,RoadwayInformation,AADT,-1,-1;'
+                                r'AADT_YR "AADT Year" true true false 4 Text 0 0,First,#,RoadwayInformation,AADT_YR,0,4;'
+                                r'SURF_TYP "Original Surface Type" true true false 50 Text 0 0,First,#,RoadwayInformation,SURF_TYP,0,50;'
+                                r'SNOW_FID "Snow Route Identifier" true true false 7 Text 0 0,First,#,RoadwayInformation,SNOW_FID,0,7;'
+                                r'SNOW_DIST "Snow District" true true false 3 Text 0 0,First,#,RoadwayInformation,SNOW_DIST,0,3;'
+                                r'SNOW_TYPE "Snow Type (Priority)" true true false 1 Text 0 0,First,#,RoadwayInformation,SNOW_TYPE,0,1;'
+                                r'SNOW__RT_NBR "Snow Route Number" true true false 10 Text 0 0,First,#,RoadwayInformation,SNOW__RT_NBR,0,10;'
+                                r'SNOW_TRBL "Snow Trouble Spot Justification" true true false 2 Text 0 0,First,#,RoadwayInformation,SNOW_TRBL,0,2;'
+                                r'SNOW_SLOPE "Calculated Profile Grade" true true false 8 Double 0 0,First,#,RoadwayInformation,SNOW_SLOPE,-1,-1;'
+                                r'SNOW_TIME "Calculated Plow-time (E-E based on Lane Miles)" true true false 8 Double 0 0,First,#,RoadwayInformation,SNOW_TIME,-1,-1;'
+                                r'SMTD_DAY "SMTD Day Service" true true false 1 Text 0 0,First,#,RoadwayInformation,SMTD_DAY,0,1;'
+                                r'SMTD_NIGHT "SMTD Night Service" true true false 1 Text 0 0,First,#,RoadwayInformation,SMTD_NIGHT,0,1;'
+                                r'SMTD_SUPPL "SMTD Supplemental Service" true true false 1 Text 0 0,First,#,RoadwayInformation,SMTD_SUPPL,0,1;'
+                                r'NUMB1 "Number 1" true true false 8 Double 0 0,First,#,RoadwayInformation,NUMB1,-1,-1;'
+                                r'LNS "Through Lane Count" true true false 8 Double 0 0,First,#,RoadwayInformation,LNS,-1,-1;'
+                                r'LN_SPC_NBR "Special Lane Count" true true false 8 Double 0 0,First,#,RoadwayInformation,LN_SPC_NBR,-1,-1;'
+                                r'LN_MILES "Total Lane Miles" true true false 8 Double 0 0,First,#,RoadwayInformation,LN_TOTALMI,-1,-1', '', '')
 
         # Create a temporary SnowCOF layer to work with, prevents the error of using the same data source for future appends
         if not arcpy.Exists(snow_risk_temp):
-            arcpy.FeatureClassToFeatureClass_conversion(snow_risk, temp_fgdb, "SnowRisk_temp")
+            arcpy.FeatureClassToFeatureClass_conversion(snow_risk, risk_gdb, "SnowRisk_temp")
         else:
             arcpy.DeleteRows_management(snow_risk_temp)
             arcpy.Append_management(snow_risk, snow_risk_temp)
@@ -261,29 +227,52 @@ def SnowRisk():
             selection = arcpy.SelectLayerByAttribute_management(snow_risk_mem, "NEW_SELECTION", material[0])
             arcpy.CalculateField_management(selection, "COF_SURF", material[1], "PYTHON3")
 
+        # Calculate sinuosity of a road segment
+        # Distance formula expression
+        linear_distance = "!Shape.length!/(math.sqrt((!Shape.firstpoint.X!-!Shape.lastpoint.X!)**2+(!Shape.firstpoint.Y!-!Shape.lastpoint.Y!)**2))"
+
+        # Calculate sinuosity (curve length/linear length) then weight it based on speed limit
+        selection_sine = arcpy.SelectLayerByAttribute_management(snow_risk_mem, "NEW_SELECTION", "Shape_Length > 0")
+        arcpy.CalculateFields_management(selection_sine, "PYTHON3", [["SINUOSITY", linear_distance]])
+        arcpy.SelectLayerByAttribute_management(snow_risk_mem, "CLEAR_SELECTION")
+
+        # Calculate sinuosity if it is a loop
+        selection_nulls = arcpy.SelectLayerByAttribute_management(snow_risk_mem, "NEW_SELECTION", "SINUOSITY IS NULL And Shape_Length > 0")
+        arcpy.CalculateField_management(selection_nulls, "SINUOSITY", "30", "PYTHON3")
+        arcpy.SelectLayerByAttribute_management(snow_risk_mem, "CLEAR_SELECTION")
+
+        # COF for sinuosity
+        curves = [["SINUOSITY <= 1.02", "1"],  # Sinuosity 1 does not exist by definition but converting float-->double makes 1 values equal .999
+                  ["SINUOSITY <= 1.05", "2"],
+                  ["SINUOSITY <= 1.1", "3"],
+                  ["SINUOSITY <= 30", "4"]]
+        for curve in curves:
+            selection = arcpy.SelectLayerByAttribute_management(snow_risk_mem, "NEW_SELECTION", curve[0])
+            arcpy.CalculateField_management(selection, "COF_SINE", curve[1], "PYTHON3")
+            arcpy.SelectLayerByAttribute_management(snow_risk_mem, "CLEAR_SELECTION")
+
         # Clear last selection
         arcpy.SelectLayerByAttribute_management(snow_risk_mem, "CLEAR_SELECTION")
 
         # Calculate Total COF Score using the previous four calculated fields, then calculate average
         selection = arcpy.SelectLayerByAttribute_management(snow_risk_mem, "NEW_SELECTION", "SNOW_FID <> 'NORTE'")
-        arcpy.CalculateField_management(selection, "COF", "!COF_SMTD!+!COF_FC!+(!COF_SLOPE!*!COF_AADT!)+!COF_TRBL!+!COF_CRASH!+!COF_SURF!", "PYTHON3")
+        arcpy.CalculateField_management(selection, "COF", "!COF_AADT!*(!COF_SMTD!+!COF_FC!+!COF_SLOPE!+!COF_TRBL!+!COF_CRASH!+!COF_SURF!+!COF_SINE!)", "PYTHON3")
         arcpy.CalculateField_management(selection, "COF_AVG", "round(!COF!/7,1)", "PYTHON3")
 
     # Calculate individual POF scores based off of fields in the feature layer
     # Total lane miles, drive time from salt domes, drive time from fleet facilities
-
     def probability():
         # Salt distances layers
-        salt_5 = os.path.join(temp_fgdb, "Salt_5")
-        salt_10 = os.path.join(temp_fgdb, "Salt_10")
-        salt_15 = os.path.join(temp_fgdb, "Salt_15")
-        salt_20 = os.path.join(temp_fgdb, "Salt_20")
+        salt_5 = os.path.join(risk_gdb, "Salt_5")
+        salt_10 = os.path.join(risk_gdb, "Salt_10")
+        salt_15 = os.path.join(risk_gdb, "Salt_15")
+        salt_20 = os.path.join(risk_gdb, "Salt_20")
 
         # Fleet distances layers
-        fleet_5 = os.path.join(temp_fgdb, "Fleet_5")
-        fleet_10 = os.path.join(temp_fgdb, "Fleet_10")
-        fleet_15 = os.path.join(temp_fgdb, "Fleet_15")
-        fleet_20 = os.path.join(temp_fgdb, "Fleet_20")
+        fleet_5 = os.path.join(risk_gdb, "Fleet_5")
+        fleet_10 = os.path.join(risk_gdb, "Fleet_10")
+        fleet_15 = os.path.join(risk_gdb, "Fleet_15")
+        fleet_20 = os.path.join(risk_gdb, "Fleet_20")
 
         # Calculate total number of lanes
         arcpy.CalculateField_management(snow_risk_mem, "LN_TOTAL", "!LNS!+!LN_SPC_NBR!", "PYTHON3")
