@@ -205,12 +205,14 @@ def SnowRisk():
             arcpy.CalculateField_management(selection, "COF_SURF", material[1], "PYTHON3")
 
         # Calculate sinuosity of a road segment
-        # Distance formula expression
-        linear_distance = "!Shape.length!/(math.sqrt((!Shape.firstpoint.X!-!Shape.lastpoint.X!)**2+(!Shape.firstpoint.Y!-!Shape.lastpoint.Y!)**2))"
+        # Distance formula expressions; loop distance splits closed loops into 2 segments equal to 50% of the shape length and separately calculates the linear distance
+        '''linear_distance = "!Shape.length!/(math.sqrt((!Shape.firstpoint.X!-!Shape.lastpoint.X!)**2+(!Shape.firstpoint.Y!-!Shape.lastpoint.Y!)**2))"'''
+        loop_distance = "!Shape.length!/(math.sqrt((!Shape.firstpoint.X!-!Shape!.positionAlongLine(0.5, True).firstpoint.X)**2+(!Shape.firstpoint.Y!-!Shape!.positionAlongLine(0.5, True).firstpoint.Y)**2) + " \
+                        "math.sqrt((!Shape!.positionAlongLine(0.5, True).firstpoint.X-!Shape.lastpoint.X!)**2+(!Shape!.positionAlongLine(0.5, True).firstpoint.Y-!Shape.lastpoint.Y!)**2))"
 
         # Calculate sinuosity (curve length/linear length) then weight it based on speed limit
         selection_sine = arcpy.SelectLayerByAttribute_management(snow_risk_mem, "NEW_SELECTION", "Shape_Length > 0")
-        arcpy.CalculateFields_management(selection_sine, "PYTHON3", [["SINUOSITY", linear_distance]])
+        arcpy.CalculateFields_management(selection_sine, "PYTHON3", [["SINUOSITY", loop_distance]])
         arcpy.SelectLayerByAttribute_management(snow_risk_mem, "CLEAR_SELECTION")
 
         # Calculate sinuosity if it is a loop
