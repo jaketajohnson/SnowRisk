@@ -123,7 +123,6 @@ def SnowRisk():
     snow_risk = os.path.join(risk_gdb, "SnowRisk")  # Final output in temp GDBs
 
     def initialize():
-
         # Create a temporary SnowCOF layer to work with, prevents the error of using the same data source for future appends
         if not arcpy.Exists(snow_risk_temp):
             arcpy.FeatureClassToFeatureClass_conversion(snow_risk, risk_gdb, "SnowRisk_temp")
