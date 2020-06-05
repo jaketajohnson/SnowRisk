@@ -23,8 +23,8 @@ from logging.handlers import RotatingFileHandler
 
 
 def start_rotating_logging(log_path=None,
-                           max_bytes=100000,
-                           backup_count=2,
+                           max_bytes=500000,
+                           backup_count=1,
                            suppress_requests_messages=True):
     """
     This function starts logging with a rotating file handler.  If no log
@@ -124,29 +124,6 @@ def SnowRisk():
 
     def initialize():
 
-        # Clear snow_risk and repopulate
-        arcpy.DeleteRows_management(snow_risk)
-        arcpy.Append_management(roadway_information, snow_risk, "NO_TEST",
-                                r'ROAD_NAME "Street Name" true true false 75 Text 0 0,First,#,RoadwayInformation,ROAD_NAME,0,75;'
-                                r'FC "Functional Classification" true true false 1 Text 0 0,First,#,RoadwayInformation,FC,0,1;'
-                                r'AADT "Annual Average Daily Traffic" true true false 8 Double 0 0,First,#,RoadwayInformation,AADT,-1,-1;'
-                                r'AADT_YR "AADT Year" true true false 4 Text 0 0,First,#,RoadwayInformation,AADT_YR,0,4;'
-                                r'SURF_TYP "Original Surface Type" true true false 50 Text 0 0,First,#,RoadwayInformation,SURF_TYP,0,50;'
-                                r'SNOW_FID "Snow Route Identifier" true true false 7 Text 0 0,First,#,RoadwayInformation,SNOW_FID,0,7;'
-                                r'SNOW_DIST "Snow District" true true false 3 Text 0 0,First,#,RoadwayInformation,SNOW_DIST,0,3;'
-                                r'SNOW_TYPE "Snow Type (Priority)" true true false 1 Text 0 0,First,#,RoadwayInformation,SNOW_TYPE,0,1;'
-                                r'SNOW__RT_NBR "Snow Route Number" true true false 10 Text 0 0,First,#,RoadwayInformation,SNOW__RT_NBR,0,10;'
-                                r'SNOW_TRBL "Snow Trouble Spot Justification" true true false 2 Text 0 0,First,#,RoadwayInformation,SNOW_TRBL,0,2;'
-                                r'SNOW_SLOPE "Calculated Profile Grade" true true false 8 Double 0 0,First,#,RoadwayInformation,SNOW_SLOPE,-1,-1;'
-                                r'SNOW_TIME "Calculated Plow-time (E-E based on Lane Miles)" true true false 8 Double 0 0,First,#,RoadwayInformation,SNOW_TIME,-1,-1;'
-                                r'SMTD_DAY "SMTD Day Service" true true false 1 Text 0 0,First,#,RoadwayInformation,SMTD_DAY,0,1;'
-                                r'SMTD_NIGHT "SMTD Night Service" true true false 1 Text 0 0,First,#,RoadwayInformation,SMTD_NIGHT,0,1;'
-                                r'SMTD_SUPPL "SMTD Supplemental Service" true true false 1 Text 0 0,First,#,RoadwayInformation,SMTD_SUPPL,0,1;'
-                                r'NUMB1 "Number 1" true true false 8 Double 0 0,First,#,RoadwayInformation,NUMB1,-1,-1;'
-                                r'LNS "Through Lane Count" true true false 8 Double 0 0,First,#,RoadwayInformation,LNS,-1,-1;'
-                                r'LN_SPC_NBR "Special Lane Count" true true false 8 Double 0 0,First,#,RoadwayInformation,LN_SPC_NBR,-1,-1;'
-                                r'LN_MILES "Total Lane Miles" true true false 8 Double 0 0,First,#,RoadwayInformation,LN_TOTALMI,-1,-1', '', '')
-
         # Create a temporary SnowCOF layer to work with, prevents the error of using the same data source for future appends
         if not arcpy.Exists(snow_risk_temp):
             arcpy.FeatureClassToFeatureClass_conversion(snow_risk, risk_gdb, "SnowRisk_temp")
@@ -242,10 +219,10 @@ def SnowRisk():
         arcpy.SelectLayerByAttribute_management(snow_risk_mem, "CLEAR_SELECTION")
 
         # COF for sinuosity
-        curves = [["SINUOSITY <= 1.02", "1"],  # Sinuosity 1 does not exist by definition but converting float-->double makes 1 values equal .999
-                  ["SINUOSITY <= 1.05", "2"],
-                  ["SINUOSITY <= 1.1", "3"],
-                  ["SINUOSITY <= 30", "4"]]
+        curves = [["SINUOSITY <= 1.02 AND SINUOSITY > .98", "1"],  # Sinuosity < 1 does not exist by definition but converting float-->double makes 1 values equal .999
+                  ["SINUOSITY <= 1.05 AND SINUOSITY > 1.02", "2"],
+                  ["SINUOSITY <= 1.1 AND SINUOSITY > 1.05", "3"],
+                  ["SINUOSITY <= 30 AND SINUOSITY > 1.1", "4"]]
         for curve in curves:
             selection = arcpy.SelectLayerByAttribute_management(snow_risk_mem, "NEW_SELECTION", curve[0])
             arcpy.CalculateField_management(selection, "COF_SINE", curve[1], "PYTHON3")
@@ -336,7 +313,7 @@ def main():
     """
     # Make a few variables to use
     # script_folder = os.path.dirname(sys.argv[0])
-    log_file_folder = r"C:\Scripts\SnowCOF\Log_files"
+    log_file_folder = r"C:\Scripts\SnowRisk\Log_Files"
     script_name_no_ext = os.path.splitext(os.path.basename(sys.argv[0]))[0]
     log_file = os.path.join(log_file_folder, "{}.log".format(script_name_no_ext))
     logger = None
@@ -345,7 +322,7 @@ def main():
 
         # Get logging going
         logger = start_rotating_logging(log_path=log_file,
-                                        max_bytes=100000,
+                                        max_bytes=500000,
                                         backup_count=2,
                                         suppress_requests_messages=True)
         logger.info("")
