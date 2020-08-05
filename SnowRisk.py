@@ -180,18 +180,18 @@ def SnowRisk():
         # Calculate Total COF Score using the risk assessment process
 
         # Calculate the two weighed sections of COF
-        economic_factor = "!COF_FC!+!COF_SLOPE!+!COF_AADT!+!COF_TRBL!+!COF_CRASH!"
-        economic_factor_average = f"{economic_factor}/5"
+        safety_factor = "!COF_FC!+!COF_SLOPE!+!COF_AADT!+!COF_TRBL!+!COF_CRASH!"
+        safety_factor_average = f"{safety_factor}/5"
         social_factor = "!COF_SMTD!+!COF_FC!+!COF_SLOPE!+!COF_AADT!+!COF_TRBL!+!COF_CRASH!+!COF_SURF!+!COF_SINE!"
-        economic_factor_total = 24
-        economic_factor_average_total = 20
+        safety_factor_total = 24
+        safety_factor_average_total = 20
         social_factor_total = 32
-        economic_factor_weight = .75
+        safety_factor_weight = .75
         social_factor_weight = .25
 
         # Calculate final COF, Risk, and Risk with only safety factors used
-        cof = f"(((({economic_factor})/{economic_factor_total})*{economic_factor_weight}) + ((({social_factor})/{social_factor_total})*{social_factor_weight}))*4"
-        cof_safety = f"(({economic_factor_average})/{economic_factor_average_total})*4"
+        cof = f"(((({safety_factor})/{safety_factor_total})*{safety_factor_weight}) + ((({social_factor})/{social_factor_total})*{social_factor_weight}))*4"
+        cof_safety = f"(({safety_factor_average})/{safety_factor_average_total})*4"
         selection = arcpy.SelectLayerByAttribute_management(snow_risk_layer, "NEW_SELECTION", "SNOW_FID <> 'NORTE'")
         arcpy.CalculateField_management(selection, "COF", f"(round({cof}*4))/4", "PYTHON3")
         arcpy.CalculateField_management(selection, "COF_SAFETY", f"(round({cof_safety}*4))/4", "PYTHON3")
@@ -252,18 +252,18 @@ def SnowRisk():
         arcpy.SelectLayerByAttribute_management(snow_risk_layer, "CLEAR_SELECTION")
 
         # Calculate the two weighed section using the risk assessment process
-        fleet_factor = "!POF_SALT!+!POF_FLEET!"
-        lanes_factor = "!POF_SALT!+!POF_LANES!"
-        fleet_factor_total = 8
-        lanes_factor_total = 8
-        fleet_factor_weight = .50
-        lanes_factor_weight = .50
+        mechanical_factor = "!POF_SALT!+!POF_FLEET!"
+        weather_factor = "!POF_SALT!+!POF_LANES!"
+        mechanical_factor_total = 8
+        weather_factor_total = 8
+        mechanical_factor_weight = .50
+        weather_factor_weight = .50
 
         # Calculate final POF and risk score
-        pof = f"(((({fleet_factor})/{fleet_factor_total})*{fleet_factor_weight}) + ((({lanes_factor})/{lanes_factor_total})*{lanes_factor_weight}))*4"
+        pof = f"(((({mechanical_factor})/{mechanical_factor_total})*{mechanical_factor_weight}) + ((({weather_factor})/{weather_factor_total})*{weather_factor_weight}))*4"
         arcpy.CalculateField_management(snow_risk_layer, "POF", f"(round({pof}*4)/4)", "PYTHON3")
         arcpy.CalculateField_management(snow_risk_layer, "RISK", "(round((!COF!*!POF!)*10)/10)", "PYTHON3")
-        arcpy.CalculateField_management(snow_risk_layer, "RISK_SAFETY", "(round((!COF_SAFETY!*!POF!)*10/10)", "PYTHON3")
+        arcpy.CalculateField_management(snow_risk_layer, "RISK_SAFETY", "(round((!COF_SAFETY!*!POF!)*10)/10)", "PYTHON3")
 
     # Log file paths
     script_folder = os.path.dirname(sys.argv[0])
