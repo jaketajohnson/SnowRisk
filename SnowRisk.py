@@ -265,14 +265,10 @@ def SnowRisk():
         arcpy.CalculateField_management(snow_risk_layer, "RISK", "(round((!COF!*!POF!)*10)/10)", "PYTHON3")
         arcpy.CalculateField_management(snow_risk_layer, "RISK_SAFETY", "(round((!COF_SAFETY!*!POF!)*10)/10)", "PYTHON3")
 
-    # Log file paths
-    script_folder = os.path.dirname(sys.argv[0])
-    script_name_no_ext = os.path.splitext(os.path.basename(sys.argv[0]))[0]
-    log_folder = os.path.join(script_folder, "Log_Files")
-    log_file = os.path.join(log_folder, f"{script_name_no_ext}.log")
-    logger = start_rotating_logging(log_file, 10000, 1, True)
-
     # Run the above functions with logger error catching and formatting
+
+    logger = start_rotating_logging()
+
     try:
 
         logger.info("")
@@ -290,20 +286,21 @@ def SnowRisk():
         probability()
         logger.info("--- --- --- --- Probability of Failure Complete")
 
-    except ValueError as e:
-        exc_traceback = sys.exc_info()[2]
-        error_text = f'Line: {exc_traceback.tb_lineno} --- {e}'
-        try:
-            logger.error(error_text)
-        except NameError:
-            print(error_text)
-
     except (IOError, KeyError, NameError, IndexError, TypeError, UnboundLocalError):
         tbinfo = traceback.format_exc()
         try:
             logger.error(tbinfo)
         except NameError:
             print(tbinfo)
+
+    except arcpy.ExecuteError:
+        try:
+            logger.error(arcpy.GetMessages(2))
+        except NameError:
+            print(arcpy.GetMessages(2))
+
+    except:
+        logger.exception("Picked up an exception:")
 
     finally:
         try:
