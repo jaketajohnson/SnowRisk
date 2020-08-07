@@ -138,9 +138,9 @@ def SnowRisk():
             arcpy.CalculateField_management(selection, "COF_TRBL", trouble[1], "PYTHON3")
 
         crashes = [["SNOW_FID = 'NORTE'", "0"],  # 0 - NORTE
-                   ["SNOW_FID <> 'NORTE' AND SNOW_CRASH = 0", "1"],  # 1 - 1 crash
-                   ["SNOW_FID <> 'NORTE' AND SNOW_CRASH = 1", "2"],  # 2 - 2 crashes
-                   ["SNOW_FID <> 'NORTE' AND SNOW_CRASH = 2", "3"],  # 3 - 3 crashes
+                   ["SNOW_FID <> 'NORTE' AND SNOW_CRASH = 0", "1"],  # 1 - 0 crashes
+                   ["SNOW_FID <> 'NORTE' AND SNOW_CRASH = 1", "2"],  # 2 - 1 crashes
+                   ["SNOW_FID <> 'NORTE' AND SNOW_CRASH = 2", "3"],  # 3 - 2 crashes
                    ["SNOW_FID <> 'NORTE' AND SNOW_CRASH >= 3", "4"]]  # 4 - 3+ crashes
         for crash in crashes:
             selection = arcpy.SelectLayerByAttribute_management(snow_risk_layer, "NEW_SELECTION", crash[0])
