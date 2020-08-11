@@ -295,7 +295,8 @@ def SnowRisk():
 
     except arcpy.ExecuteError:
         try:
-            logger.error(arcpy.GetMessages(2))
+            tbinfo = traceback.format_exc(2)
+            logger.error(tbinfo)
         except NameError:
             print(arcpy.GetMessages(2))
 
