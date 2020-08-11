@@ -60,18 +60,64 @@ def start_rotating_logging(log_file=None, max_bytes=10000, backup_count=1, suppr
 
 
 def SnowRisk():
-
     # Environment
     arcpy.env.overwriteOutput = True
 
     # Paths
-    gdb_folder = r"F:\Shares\FGDB_Services\Data"
-    risk_fgdb = os.path.join(gdb_folder, "SnowRisk.gdb")
+    fgdb_services = r"F:\Shares\FGDB_Services"
+    data = os.path.join(fgdb_services, "Data")
+    risk_fgdb = os.path.join(data, "SnowRisk.gdb")
     snow_risk = os.path.join(risk_fgdb, "SnowRisk")
-    snow_risk_layer = "SnowRisk"
+    database_connections = os.path.join(fgdb_services, "DatabaseConnections")
+    sde = os.path.join(database_connections, "COSPW@imSPFLD@MCWINTCWDB.sde")
+    facilities_streets = os.path.join(sde, "FacilitiesStreets")
+    roadway_information = os.path.join(facilities_streets, "RoadwayInformation")
 
     def initialize():
         """Create a feature layer to work with"""
+
+        # Copy over roadway information
+        arcpy.FeatureClassToFeatureClass_conversion(roadway_information, risk_fgdb, "SnowRisk", "SNOW_DIST IS NOT NULL",
+                                                    fr"ROAD_NAME 'ROAD_NAME' true true false 255 Text 0 0,First,#,{roadway_information},ROAD_NAME,0,75;"
+                                                    fr"FC 'Functional Classification' true true false 1 Text 0 0,First,#,{roadway_information},FC,0,1;"
+                                                    fr"AADT 'Annual Average Daily Traffic' true true false 8 Double 8 38,First,#,{roadway_information},AADT,-1,-1;"
+                                                    fr"AADT_YR 'AADT Year' true true false 4 Text 0 0,First,#,{roadway_information},AADT_YR,0,4;"
+                                                    fr"LN_MI 'Through Lane Miles' true true false 8 Double 8 38,First,#,{roadway_information},LN_MI,-1,-1;"
+                                                    fr"LN_SPC_NBR 'Special Lane Count' true true false 8 Double 8 38,First,#,{roadway_information},LN_SPC_NBR,-1,-1;"
+                                                    fr"LN_TOTALMI 'Total Lane Miles' true true false 8 Double 8 38,First,#,{roadway_information},LN_TOTALMI,-1,-1;"
+                                                    fr"LNS 'Through Lane Count' true true false 8 Short 8 38,First,#,{roadway_information},LNS,-1,-1;"
+                                                    fr"SMTD_DAY 'SMTD Day Service' true true false 1 Text 0 0,First,#,{roadway_information},SMTD_DAY,0,1;"
+                                                    fr"SMTD_NIGHT 'SMTD Night Service' true true false 1 Text 0 0,First,#,{roadway_information},SMTD_NIGHT,0,1;"
+                                                    fr"SMTD_SUPPL 'SMTD Supplemental Service' true true false 1 Text 0 0,First,#,{roadway_information},SMTD_SUPPL,0,1;"
+                                                    fr"SNOW_CRASH 'Snow Crash Numbers' true true false 255 Short 0 0,First,#,{roadway_information},NUMB1,-1,-1;"
+                                                    fr"SNOW_DIST 'Snow District' true true false 3 Text 0 0,First,#,{roadway_information},SNOW_DIST,0,3;"
+                                                    fr"SNOW_FID 'Snow Route Identifier' true true false 7 Text 0 0,First,#,{roadway_information},SNOW_FID,0,7;"
+                                                    fr"SNOW_RT_NBR 'SNOW_RT_NBR' true true false 10 Text 0 0,First,#,{roadway_information},SNOW__RT_NBR,0,10;"
+                                                    fr"SNOW_SLOPE 'Calculated Profile Grade' true true false 8 Double 8 38,First,#,{roadway_information},SNOW_SLOPE,-1,-1;"
+                                                    fr"SNOW_TYPE 'Snow Type (Priority)' true true false 1 Text 0 0,First,#,{roadway_information},SNOW_TYPE,0,1;"
+                                                    fr"SNOW_TIME 'Calculated Plow-time (E-E based on Lane Miles)' true true false 8 Double 8 38,First,#,{roadway_information},SNOW_TIME,-1,-1;"
+                                                    fr"SNOW_TRBL 'Snow Trouble Spot Justification' true true false 2 Text 0 0,First,#,{roadway_information},SNOW_TRBL,0,2;"
+                                                    fr"SURF_TYP 'Original Surface Type' true true false 50 Text 0 0,First,#,{roadway_information},SURF_TYP,0,50")
+
+        # Add the fields to use
+        arcpy.AddFields_management(snow_risk, [["LN_TOTAL", "Short", "Total Lane Count"],
+                                               ["SINUOSITY", "Double", "Sinuosity"],
+                                               ["COF", "Double", "Total COF Score"],
+                                               ["COF_SAFETY", "Double", "Safety COF Score"],
+                                               ["COF_AADT", "Short", "AADT Score"],
+                                               ["COF_CRASH", "Short", "Crash Data Score"],
+                                               ["COF_FC", "Short", "FC Score"],
+                                               ["COF_SINE", "Short", "Sinuosity Score"],
+                                               ["COF_SLOPE", "Short", "Slope Score"],
+                                               ["COF_SMTD", "Short", "SMTD Bus Routes Score"],
+                                               ["COF_SURF", "Short", "Surface Type Score"],
+                                               ["COF_TRBL", "Short", "Trouble Spot Score"],
+                                               ["POF", "Double", "Total POF Score"],
+                                               ["POF_FLEET", "Short", "Distance to Fleet Score"],
+                                               ["POF_LANES", "Short", "Lane Count Score"],
+                                               ["POF_SALT", "Short", "Distance to Salt Score"],
+                                               ["RISK", "Double", "Total Risk Score"],
+                                               ["RISK_SAFETY", "Double", "Safety Risk Score"]])
 
         arcpy.MakeFeatureLayer_management(snow_risk, "SnowRisk")
 
@@ -94,7 +140,7 @@ def SnowRisk():
                   ["SNOW_FID <> 'NORTE' or (SMTD_DAY = '1' Or SMTD_NIGHT = '1')", "3"],  # 3 - Day and night
                   ["SNOW_FID <> 'NORTE' AND SMTD_DAY = '2'", "4"]]  # 4 - Express SMTD bus routes like exchange/transfer areas
         for route in routes:
-            selection = arcpy.SelectLayerByAttribute_management(snow_risk_layer, "NEW_SELECTION", route[0])
+            selection = arcpy.SelectLayerByAttribute_management("SnowRisk", "NEW_SELECTION", route[0])
             arcpy.CalculateField_management(selection, "COF_SMTD", route[1], "PYTHON3")
 
         # Functional Classifications
@@ -104,7 +150,7 @@ def SnowRisk():
                            ["SNOW_FID <> 'NORTE' AND FC = '5'", "3"],  # 3 - Major collector
                            ["SNOW_FID <> 'NORTE' AND (FC = '4' or FC='3')", "4"]]  # 4 - Arterials
         for classification in classifications:
-            selection = arcpy.SelectLayerByAttribute_management(snow_risk_layer, "NEW_SELECTION", classification[0])
+            selection = arcpy.SelectLayerByAttribute_management("SnowRisk", "NEW_SELECTION", classification[0])
             arcpy.CalculateField_management(selection, "COF_FC", classification[1], "PYTHON3")
 
         # Slopes
@@ -114,7 +160,7 @@ def SnowRisk():
                   ["SNOW_FID <> 'NORTE' AND (SNOW_SLOPE >= 3 AND SNOW_SLOPE <= 3.999)", "3"],  # 3 - 3-4%
                   ["SNOW_FID <> 'NORTE' AND SNOW_SLOPE >= 4", "4"]]  # 4 - 4%+
         for slope in slopes:
-            selection = arcpy.SelectLayerByAttribute_management(snow_risk_layer, "NEW_SELECTION", slope[0])
+            selection = arcpy.SelectLayerByAttribute_management("SnowRisk", "NEW_SELECTION", slope[0])
             arcpy.CalculateField_management(selection, "COF_SLOPE", slope[1], "PYTHON3")
 
         # Traffic Annual Averages (AADT)
@@ -124,7 +170,7 @@ def SnowRisk():
                     ["SNOW_FID <> 'NORTE' AND (AADT >= 1401 AND AADT <= 3100)", "3"],  # 3 - > 1400 - 3100
                     ["SNOW_FID <> 'NORTE' AND AADT > 3100", "4"]]  # 4 - 3100+
         for average in averages:
-            selection = arcpy.SelectLayerByAttribute_management(snow_risk_layer, "NEW_SELECTION", average[0])
+            selection = arcpy.SelectLayerByAttribute_management("SnowRisk", "NEW_SELECTION", average[0])
             arcpy.CalculateField_management(selection, "COF_AADT", average[1], "PYTHON3")
 
         # Trouble Spot Justification
@@ -134,7 +180,7 @@ def SnowRisk():
                     ["SNOW_FID <> 'NORTE' AND SNOW_TRBL IN ('07', '13')", "3"],  # 3 - 7,13
                     ["SNOW_FID <> 'NORTE' AND SNOW_TRBL IN ('01', '02', '03', '04', '06')", "4"]]  # 4 - 1,2,3,4,6
         for trouble in troubles:
-            selection = arcpy.SelectLayerByAttribute_management(snow_risk_layer, "NEW_SELECTION", trouble[0])
+            selection = arcpy.SelectLayerByAttribute_management("SnowRisk", "NEW_SELECTION", trouble[0])
             arcpy.CalculateField_management(selection, "COF_TRBL", trouble[1], "PYTHON3")
 
         crashes = [["SNOW_FID = 'NORTE'", "0"],  # 0 - NORTE
@@ -143,7 +189,7 @@ def SnowRisk():
                    ["SNOW_FID <> 'NORTE' AND SNOW_CRASH = 2", "3"],  # 3 - 2 crashes
                    ["SNOW_FID <> 'NORTE' AND SNOW_CRASH >= 3", "4"]]  # 4 - 3+ crashes
         for crash in crashes:
-            selection = arcpy.SelectLayerByAttribute_management(snow_risk_layer, "NEW_SELECTION", crash[0])
+            selection = arcpy.SelectLayerByAttribute_management("SnowRisk", "NEW_SELECTION", crash[0])
             arcpy.CalculateField_management(selection, "COF_CRASH", crash[1], "PYTHON3")
 
         materials = [["SNOW_FID = 'NORTE'", "0"],  # 0 - NORTE
@@ -152,7 +198,7 @@ def SnowRisk():
                      ["SNOW_FID <> 'NORTE' AND SURF_TYP LIKE '7%'", "3"],  # 3 - Concrete
                      ["SNOW_FID <> 'NORTE' AND SURF_TYP LIKE '8%'", "4"]]  # 4 - Brick
         for material in materials:
-            selection = arcpy.SelectLayerByAttribute_management(snow_risk_layer, "NEW_SELECTION", material[0])
+            selection = arcpy.SelectLayerByAttribute_management("SnowRisk", "NEW_SELECTION", material[0])
             arcpy.CalculateField_management(selection, "COF_SURF", material[1], "PYTHON3")
 
         # Sinuosity distance formula expressions; loop distance splits closed loops into 2 segments equal to 50% of the shape length and separately calculates the linear distance
@@ -160,11 +206,11 @@ def SnowRisk():
                         "math.sqrt((!Shape!.positionAlongLine(0.5, True).firstpoint.X-!Shape.lastpoint.X!)**2+(!Shape!.positionAlongLine(0.5, True).firstpoint.Y-!Shape.lastpoint.Y!)**2))"
 
         # Calculate sinuosity (curve length/linear length) then weight it based on speed limit
-        selection_sinuosity = arcpy.SelectLayerByAttribute_management(snow_risk_layer, "NEW_SELECTION", "Shape_Length > 0")
+        selection_sinuosity = arcpy.SelectLayerByAttribute_management("SnowRisk", "NEW_SELECTION", "Shape_Length > 0")
         arcpy.CalculateField_management(selection_sinuosity, "SINUOSITY", loop_distance, "PYTHON3")
 
         # Calculate sinuosity if it is a loop
-        selection_nulls = arcpy.SelectLayerByAttribute_management(snow_risk_layer, "NEW_SELECTION", "SINUOSITY IS NULL And Shape_Length > 0")
+        selection_nulls = arcpy.SelectLayerByAttribute_management("SnowRisk", "NEW_SELECTION", "SINUOSITY IS NULL And Shape_Length > 0")
         arcpy.CalculateField_management(selection_nulls, "SINUOSITY", "30", "PYTHON3")
 
         # Sinuosity
@@ -173,9 +219,9 @@ def SnowRisk():
                   ["SINUOSITY <= 1.1 AND SINUOSITY > 1.05", "3"],
                   ["SINUOSITY <= 30 AND SINUOSITY > 1.1", "4"]]
         for curve in curves:
-            selection = arcpy.SelectLayerByAttribute_management(snow_risk_layer, "NEW_SELECTION", curve[0])
+            selection = arcpy.SelectLayerByAttribute_management("SnowRisk", "NEW_SELECTION", curve[0])
             arcpy.CalculateField_management(selection, "COF_SINE", curve[1], "PYTHON3")
-        arcpy.SelectLayerByAttribute_management(snow_risk_layer, "CLEAR_SELECTION")
+        arcpy.SelectLayerByAttribute_management("SnowRisk", "CLEAR_SELECTION")
 
         # Calculate Total COF Score using the risk assessment process
 
@@ -192,7 +238,7 @@ def SnowRisk():
         # Calculate final COF, Risk, and Risk with only safety factors used
         cof = f"(((({safety_factor})/{safety_factor_total})*{safety_factor_weight}) + ((({social_factor})/{social_factor_total})*{social_factor_weight}))*4"
         cof_safety = f"(({safety_factor_average})/{safety_factor_average_total})*4"
-        selection = arcpy.SelectLayerByAttribute_management(snow_risk_layer, "NEW_SELECTION", "SNOW_FID <> 'NORTE'")
+        selection = arcpy.SelectLayerByAttribute_management("SnowRisk", "NEW_SELECTION", "SNOW_FID <> 'NORTE'")
         arcpy.CalculateField_management(selection, "COF", f"(round({cof}*4))/4", "PYTHON3")
         arcpy.CalculateField_management(selection, "COF_SAFETY", f"(round({cof_safety}*4))/4", "PYTHON3")
 
@@ -218,7 +264,7 @@ def SnowRisk():
         fleet_20 = os.path.join(risk_fgdb, "Fleet_20")
 
         # Calculate total number of lanes
-        arcpy.CalculateField_management(snow_risk_layer, "LN_TOTAL", "!LNS!+!LN_SPC_NBR!", "PYTHON3")
+        arcpy.CalculateField_management("SnowRisk", "LN_TOTAL", "!LNS!+!LN_SPC_NBR!", "PYTHON3")
 
         # Distance to salt domes
         salts = [[salt_5, "1"],  # 1 - 5 minutes or less
@@ -226,7 +272,7 @@ def SnowRisk():
                  [salt_15, "3"],  # 3 - 15 minutes or less
                  [salt_20, "4"]]  # 4 - 20 minutes or less
         for salt in salts:
-            selection = arcpy.SelectLayerByLocation_management(snow_risk_layer, "HAVE_THEIR_CENTER_IN", salt[0], None, "NEW_SELECTION")
+            selection = arcpy.SelectLayerByLocation_management("SnowRisk", "HAVE_THEIR_CENTER_IN", salt[0], None, "NEW_SELECTION")
             subset_selection = arcpy.SelectLayerByAttribute_management(selection, "SUBSET_SELECTION", "SNOW_FID <> 'NORTE'")
             arcpy.CalculateField_management(subset_selection, "POF_SALT", salt[1], "PYTHON3")
 
@@ -236,7 +282,7 @@ def SnowRisk():
                   [fleet_15, "3"],  # 3 - 15 minutes or less
                   [fleet_20, "4"]]  # 4 - 20 minutes or less
         for fleet in fleets:
-            selection = arcpy.SelectLayerByLocation_management(snow_risk_layer, "HAVE_THEIR_CENTER_IN", fleet[0], None, "NEW_SELECTION")
+            selection = arcpy.SelectLayerByLocation_management("SnowRisk", "HAVE_THEIR_CENTER_IN", fleet[0], None, "NEW_SELECTION")
             subset_selection = arcpy.SelectLayerByAttribute_management(selection, "SUBSET_SELECTION", "SNOW_FID <> 'NORTE'")
             arcpy.CalculateField_management(subset_selection, "POF_FLEET", fleet[1], "PYTHON3")
 
@@ -246,10 +292,8 @@ def SnowRisk():
                  ["LN_TOTAL = 4", "3"],
                  ["LN_TOTAL >= 5", "4"]]
         for total in lanes:
-            selection = arcpy.SelectLayerByAttribute_management(snow_risk_layer, "NEW_SELECTION", total[0])
+            selection = arcpy.SelectLayerByAttribute_management("SnowRisk", "NEW_SELECTION", total[0])
             arcpy.CalculateField_management(selection, "POF_LANES", total[1], "PYTHON3")
-
-        arcpy.SelectLayerByAttribute_management(snow_risk_layer, "CLEAR_SELECTION")
 
         # Calculate the two weighed section using the risk assessment process
         mechanical_factor = "!POF_SALT!+!POF_FLEET!"
@@ -261,9 +305,9 @@ def SnowRisk():
 
         # Calculate final POF and risk score
         pof = f"(((({mechanical_factor})/{mechanical_factor_total})*{mechanical_factor_weight}) + ((({weather_factor})/{weather_factor_total})*{weather_factor_weight}))*4"
-        arcpy.CalculateField_management(snow_risk_layer, "POF", f"(round({pof}*4)/4)", "PYTHON3")
-        arcpy.CalculateField_management(snow_risk_layer, "RISK", "(round((!COF!*!POF!)*10)/10)", "PYTHON3")
-        arcpy.CalculateField_management(snow_risk_layer, "RISK_SAFETY", "(round((!COF_SAFETY!*!POF!)*10)/10)", "PYTHON3")
+        arcpy.CalculateField_management("SnowRisk", "POF", f"(round({pof}*4)/4)", "PYTHON3")
+        arcpy.CalculateField_management("SnowRisk", "RISK", "(round((!COF!*!POF!)*10)/10)", "PYTHON3")
+        arcpy.CalculateField_management("SnowRisk", "RISK_SAFETY", "(round((!COF_SAFETY!*!POF!)*10)/10)", "PYTHON3")
 
     # Run the above functions with logger error catching and formatting
 
