@@ -208,8 +208,10 @@ def SnowRisk():
             arcpy.CalculateField_management(selection, "COF_SURF", material[1], "PYTHON3")
 
         # Sinuosity distance formula expressions; loop distance splits closed loops into 2 segments equal to 50% of the shape length and separately calculates the linear distance
-        loop_distance = "!Shape.length!/(math.sqrt((!Shape.firstpoint.X!-!Shape!.positionAlongLine(0.5, True).firstpoint.X)**2+(!Shape.firstpoint.Y!-!Shape!.positionAlongLine(0.5, True).firstpoint.Y)**2) + " \
-                        "math.sqrt((!Shape!.positionAlongLine(0.5, True).firstpoint.X-!Shape.lastpoint.X!)**2+(!Shape!.positionAlongLine(0.5, True).firstpoint.Y-!Shape.lastpoint.Y!)**2))"
+        loop_distance = "!Shape.length!/(math.sqrt((!Shape.firstpoint.X!-!Shape!.positionAlongLine(0.5, True).firstpoint.X)**2 +" \
+                        "(!Shape.firstpoint.Y!-!Shape!.positionAlongLine(0.5, True).firstpoint.Y)**2) + " \
+                        "math.sqrt((!Shape!.positionAlongLine(0.5, True).firstpoint.X-!Shape.lastpoint.X!)**2 +" \
+                        "(!Shape!.positionAlongLine(0.5, True).firstpoint.Y-!Shape.lastpoint.Y!)**2))"
 
         # Calculate sinuosity (curve length/linear length) then weight it based on speed limit
         selection_sinuosity = arcpy.SelectLayerByAttribute_management("SnowRisk", "NEW_SELECTION", "Shape_Length > 0")
@@ -344,17 +346,21 @@ def SnowRisk():
 
         # Dissolve SnowRisk
         arcpy.MakeFeatureLayer_management(snow_risk, "SnowRisk")
-        arcpy.Dissolve_management(snow_risk, snow_rank, ["ROAD_NAME", "SNOW_DIST", "SNOW_TYPE"], [["RISK", "MEAN"]], "SINGLE_PART")
+        arcpy.Dissolve_management(snow_risk, snow_rank, ["SNOW_DIST", "SNOW_TYPE", "ROAD_NAME", "SNOW_RT_NBR"], [["COF", "MEAN"], ["POF", "MEAN"], ["RISK", "MEAN"], ["AADT", "MEAN"],
+                                                                                                                 ["LN_TOTALMI", "SUM"]])
 
-        # Add two rank fields, one for total and one for within its district
+        # Add three rank fields, one for total, one for within its district, and one for within its route; also add a field for the first 3 digits of the route number
         arcpy.MakeFeatureLayer_management(snow_rank, "SnowRank")
-        arcpy.AddFields_management("SnowRank", [["RANK", "SHORT", "Total Rank", "4", "0"],
-                                                ["RANK_DISTRICT", "SHORT", "District Rank", "4", "0"]])
+        arcpy.AddFields_management("SnowRank", [["SNOW_RT_SHORT", "SHORT", "Snow Route Short", "4", "0"],
+                                                ["SNOW_RT_NAME", "TEXT", "Snow Route Name", "20", "0"],
+                                                ["RANK", "SHORT", "Total Rank", "4", "0"],
+                                                ["RANK_DISTRICT", "SHORT", "District Rank", "4", "0"],
+                                                ["RANK_ROUTE", "SHORT", "Route Rank", "4", "0"]])
 
         # Template for ranking
         def ranking(table, field):
             rank = 1
-            clause = (None, "ORDER BY MEAN_RISK DESC")
+            clause = (None, "ORDER BY MEAN_COF DESC")
             with arcpy.da.UpdateCursor(table, field, sql_clause=clause) as cursor:
                 for score in cursor:
                     score[0] = rank
@@ -365,11 +371,33 @@ def SnowRisk():
         # Total rank
         ranking("SnowRank", "RANK")
 
-        # Rank by district
+        # Rank by district then by type/priority in that district
         districts = ["D1", "D2", "D3", "D4", "D5", "D6", "CBD"]
+        subdistricts = ["101", "102", "201", "202", "301", "302", "401", "402", "501", "601", "602", "701", "702"]
         for district in districts:
             selected_districts = arcpy.SelectLayerByAttribute_management(snow_rank, "NEW_SELECTION", f"SNOW_DIST = '{district}'")
             ranking(selected_districts, "RANK_DISTRICT")
+
+            for subdistrict in subdistricts:
+                selected_priorities = arcpy.SelectLayerByAttribute_management(snow_rank, "NEW_SELECTION", f"SNOW_RT_NBR LIKE '{subdistrict}'")
+                ranking(selected_priorities, "RANK_ROUTE")
+
+        # Calculate the first three digits of the route number
+        arcpy.CalculateField_management(snow_rank, "SNOW_RT_SHORT", "!SNOW_RT_NBR![:3]", "PYTHON3", )
+
+        # Calculate the district name, e.g. District 1 Section A
+        code_block = """def route(field):
+            if field[2] == "1":
+                letter = "A"
+            elif field[2] == "2":
+                letter = "B"
+            else:
+                letter = "0"
+
+            number = field[0]
+            name = f"District {number} Section {letter}"
+            return name"""
+        arcpy.CalculateField_management(snow_rank, "SNOW_RT_NAME", "route(!SNOW_RT_NBR!)", "PYTHON3", code_block)
 
     # Run the above functions with logger error catching and formatting
 
