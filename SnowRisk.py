@@ -19,47 +19,36 @@ import os
 import sys
 import traceback
 import math
-from logging.handlers import RotatingFileHandler
 
 
-def start_rotating_logging(log_file=None, max_bytes=10000, backup_count=0, suppress_requests_messages=True):
-    """Creates a logger that outputs to stdout and a log file; outputs start and completion of functions or attribution of functions"""
-
-    formatter = logging.Formatter(fmt="%(asctime)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
-
-    # Paths to desired log file
-    script_folder = os.path.dirname(sys.argv[0])
-    script_name = os.path.basename(sys.argv[0])
-    script_name_no_ext = os.path.splitext(script_name)[0]
-    log_folder = os.path.join(script_folder, "Log_Files")
-    if not log_file:
-        log_file = os.path.join(log_folder, f"{script_name_no_ext}.log")
-
-    # Start logging
-    the_logger = logging.getLogger(script_name)
-    the_logger.setLevel(logging.DEBUG)
-
-    # Add the rotating file handler
-    log_handler = RotatingFileHandler(filename=log_file, maxBytes=max_bytes, backupCount=backup_count)
-    log_handler.setLevel(logging.DEBUG)
-    log_handler.setFormatter(formatter)
-    the_logger.addHandler(log_handler)
-
-    # Add the console handler
+def ScriptLogging():
+    """Enables console and log file logging; see test script for comments on functionality"""
+    current_directory = os.getcwd()
+    script_filename = os.path.basename(sys.argv[0])
+    log_filename = os.path.splitext(script_filename)[0]
+    log_file = os.path.join(current_directory, f"{log_filename}.log")
+    if not os.path.exists(log_file):
+        with open(log_file, "w"):
+            pass
+    message_formatting = "%(asctime)s - %(levelname)s - %(message)s"
+    date_formatting = "%Y-%m-%d %H:%M:%S"
+    formatter = logging.Formatter(fmt=message_formatting, datefmt=date_formatting)
+    logging_output = logging.getLogger(f"{log_filename}")
+    logging_output.setLevel(logging.INFO)
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.DEBUG)
+    console_handler.setLevel(logging.INFO)
     console_handler.setFormatter(formatter)
-    the_logger.addHandler(console_handler)
-
-    # Suppress SSL warnings in logs if instructed to
-    if suppress_requests_messages:
-        logging.getLogger("requests").setLevel(logging.WARNING)
-        logging.getLogger("urllib3").setLevel(logging.WARNING)
-
-    return the_logger
+    logging_output.addHandler(console_handler)
+    logging.basicConfig(format=message_formatting, datefmt=date_formatting, filename=log_file, filemode="w", level=logging.INFO)
+    return logging_output
 
 
 def SnowRisk():
+
+    # Logging
+    logger = ScriptLogging()
+    logger.info("Script Execution Start")
+
     # Environment
     arcpy.env.overwriteOutput = True
 
@@ -80,7 +69,7 @@ def SnowRisk():
 
     def initialize():
         """Create a feature layer to work with"""
-        logger.info("--- --- --- --- Initialize Start")
+        logger.info("Initialize Start")
 
         # Copy over roadway information
         arcpy.FeatureClassToFeatureClass_conversion(roadway_information, risk_fgdb, "SnowRisk", "SNOW_DIST IS NOT NULL",
@@ -126,25 +115,25 @@ def SnowRisk():
                                                ["RISK", "Double", "Total Risk Score"],
                                                ["RISK_SAFETY", "Double", "Safety Risk Score"]])
         arcpy.MakeFeatureLayer_management(snow_risk, "SnowRisk")
-        logger.info("--- --- --- --- Initialize Complete")
+        logger.info("Initialize Complete")
 
     def RiskProcessor(risk_type, segment_list, field, name):
         """Template for looping through rank lists and calculating fields"""
         if risk_type and segment_list and field and name:
             if risk_type == "consequence":
-                logger.info(f"--- --- --- --- {name} Start")
+                logger.info(f"{name} Start")
                 for segment in segment_list:
-                    logger.info("--- --- --- --- {")
+                    logger.info(f"{segment[1]}")
                     segment_selection = arcpy.SelectLayerByAttribute_management("SnowRisk", "NEW_SELECTION", segment[0])
                     arcpy.CalculateField_management(segment_selection, field, segment[1], "PYTHON3")
-                logger.info(f"--- --- --- --- {name} Complete")
+                logger.info(f"{name} Complete")
             elif risk_type == "probability":
-                logger.info(f"--- --- --- --- {name} Start")
+                logger.info(f"{name} Start")
                 for segment in segment_list:
                     selection = arcpy.SelectLayerByLocation_management("SnowRisk", "HAVE_THEIR_CENTER_IN", segment[0], None, "NEW_SELECTION")
                     subset_selection = arcpy.SelectLayerByAttribute_management(selection, "SUBSET_SELECTION", "SNOW_FID <> 'NORTE'")
                     arcpy.CalculateField_management(subset_selection, field, segment[1], "PYTHON3")
-                logger.info(f"--- --- --- --- {name} Complete")
+                logger.info(f"{name} Complete")
             else:
                 raise ValueError("Incorrect risk type")
         else:
@@ -163,6 +152,7 @@ def SnowRisk():
         Surface materials - Type of material the segment's surface is such as bituminous
         Sinuosity - How curved or winding the segment is
         """
+        logger.info("Consequence Start")
 
         # SMTD Bus Routes
         routes = [["SNOW_FID = 'NORTE'", "0"],  # 0 - Not a snow route and no bus routes
@@ -220,6 +210,7 @@ def SnowRisk():
 
         def sinuosity():
             """Calculates the sinuosity value of each segment before giving it a rank"""
+            logger.info("Sinuosity Start")
 
             # Sinuosity distance formula expressions; loop distance splits closed loops into 2 segments equal to 50% of the shape length and separately calculates the linear distance
             loop_distance = "!Shape.length!/(math.sqrt((!Shape.firstpoint.X!-!Shape!.positionAlongLine(0.5, True).firstpoint.X)**2 +" \
@@ -234,9 +225,11 @@ def SnowRisk():
             # Calculate sinuosity if it has returned null thus far
             selection_nulls = arcpy.SelectLayerByAttribute_management("SnowRisk", "NEW_SELECTION", "SINUOSITY IS NULL AND Shape_Length > 0")
             arcpy.CalculateField_management(selection_nulls, "SINUOSITY", "30", "PYTHON3")
+            logger.info("Sinuosity Complete")
 
-        def total_scores():
-            # Calculate Total COF Score using the risk assessment process
+        def total_cof_scores():
+            """Calculate Total COF Score using the risk assessment process"""
+            logger.info("COF Totals Start")
             # Calculate the two weighed sections of COF
             safety_factor = "!COF_FC!+!COF_SLOPE!+!COF_AADT!+!COF_TRBL!+!COF_CRASH!"
             safety_factor_average = f"{safety_factor}/5"
@@ -253,6 +246,7 @@ def SnowRisk():
             selection = arcpy.SelectLayerByAttribute_management("SnowRisk", "NEW_SELECTION", "SNOW_FID <> 'NORTE'")
             arcpy.CalculateField_management(selection, "COF", f"(round({cof}*10))/10", "PYTHON3")
             arcpy.CalculateField_management(selection, "COF_SAFETY", f"(round({cof_safety}*10))/10", "PYTHON3")
+            logger.info("COF Totals Complete6")
 
         # Scoring
         RiskProcessor("consequence", routes, "COF_SMTD", "Bus Routes")
@@ -264,7 +258,8 @@ def SnowRisk():
         RiskProcessor("consequence", materials, "COF_SURF", "Surface Materials")
         sinuosity()
         RiskProcessor("consequence", curves, "COF_SINE", "Sinuosity")
-        total_scores()
+        total_cof_scores()
+        logger.info("Consequence Complete")
 
     def probability():
         """Calculate POF scores using fields in the feature layer; uses static travel time calculation layers
@@ -275,6 +270,8 @@ def SnowRisk():
         Lanes - Total number of lanes (lanes and special lanes)
 
         """
+        logger.info("Probability Start")
+
         # Salt distances layers
         salt_5 = os.path.join(salt, "Salt_5")
         salt_10 = os.path.join(salt, "Salt_10")
@@ -308,27 +305,33 @@ def SnowRisk():
                  ["LN_TOTAL = 4", "3"],
                  ["LN_TOTAL >= 5", "4"]]
 
-        # Calculate the two weighed section using the risk assessment process
-        mechanical_factor = "!POF_SALT!+!POF_FLEET!"
-        weather_factor = "!POF_SALT!+!POF_LANES!"
-        mechanical_factor_total = 8
-        weather_factor_total = 8
-        mechanical_factor_weight = .50
-        weather_factor_weight = .50
+        def total_pof_scores():
+            """Calculate the two weighed section using the risk assessment process"""
+            logger.info("POF Totals Start")
+            mechanical_factor = "!POF_SALT!+!POF_FLEET!"
+            weather_factor = "!POF_SALT!+!POF_LANES!"
+            mechanical_factor_total = 8
+            weather_factor_total = 8
+            mechanical_factor_weight = .50
+            weather_factor_weight = .50
 
-        # Calculate final POF and risk score
-        pof = f"(((({mechanical_factor})/{mechanical_factor_total})*{mechanical_factor_weight}) + ((({weather_factor})/{weather_factor_total})*{weather_factor_weight}))*4"
-        arcpy.CalculateFields_management("SnowRisk", "PYTHON3", [["POF", f"(round({pof}*10)/10)"],
-                                                                 ["RISK", "(round((!COF!*!POF!)*10)/10)"],
-                                                                 ["RISK_SAFETY", "(round((!COF_SAFETY!*!POF!)*10)/10)"]])
+            # Calculate final POF and risk score
+            pof = f"(((({mechanical_factor})/{mechanical_factor_total})*{mechanical_factor_weight}) + ((({weather_factor})/{weather_factor_total})*{weather_factor_weight}))*4"
+            arcpy.CalculateFields_management("SnowRisk", "PYTHON3", [["POF", f"(round({pof}*10)/10)"],
+                                                                     ["RISK", "(round((!COF!*!POF!)*10)/10)"],
+                                                                     ["RISK_SAFETY", "(round((!COF_SAFETY!*!POF!)*10)/10)"]])
+            logger.info("POF Totals Complete")
 
         # Scoring
         RiskProcessor("probability", salt_domes, "POF_SALT", "Salt Domes")
         RiskProcessor("probability", fleet_garages, "POF_FLEET", "Fleet Garages")
         RiskProcessor("consequence", lanes, "POF_LANES", "Lane Counts")
+        total_pof_scores()
+        logger.info("Probability Complete")
 
     def risk_minor():
         """Create a risk scores using only minor arterials and local roads"""
+        logger.info("Risk Minor Start")
 
         arcpy.FeatureClassToFeatureClass_conversion(snow_risk, risk_fgdb, "SnowRiskMinor", "FC IN ('6', '7')")
         arcpy.MakeFeatureLayer_management(snow_risk_minor, "SnowRiskMinor")
@@ -347,9 +350,11 @@ def SnowRisk():
         arcpy.CalculateField_management(selection_minor, "COF", f"round(({cof_minor}), 2)", "PYTHON3")
         arcpy.CalculateField_management(selection_minor, "RISK", "round((!COF!*!POF!), 2)", "PYTHON3")
         arcpy.Dissolve_management("SnowRiskMinor", snow_risk_minor_dissolved, ["ROAD_NAME", "SNOW_TYPE", "SNOW_DIST"], [["COF", "MEAN"], ["POF", "MEAN"], ["RISK", "MEAN"]], "SINGLE_PART")
+        logger.info("Risk Minor Complete")
 
     def risk_rank():
         """Rank risk scores for minor roads, descending order (highest rank = highest score)"""
+        logger.info("Risk Rank Start")
 
         # Dissolve SnowRisk
         arcpy.MakeFeatureLayer_management(snow_risk, "SnowRisk")
@@ -359,7 +364,7 @@ def SnowRisk():
         # Add three rank fields, one for total, one for within its district, and one for within its route; also add a field for the first 3 digits of the route number and a full name
         arcpy.MakeFeatureLayer_management(snow_rank, "SnowRank")
         arcpy.AddFields_management("SnowRank", [["SNOW_RT_SHORT", "SHORT", "Snow Route Short", "4", "0"],
-                                                ["SNOW_RT_NAME", "TEXT", "Snow Route Name", "20", "0"],
+                                                ["SNOW_RT_NAME", "TEXT", "Snow Route Name", "40", "0"],
                                                 ["RANK", "SHORT", "Total Rank", "4", "0"],
                                                 ["RANK_DISTRICT", "SHORT", "District Rank", "4", "0"],
                                                 ["RANK_ROUTE", "SHORT", "Route Rank", "4", "0"]])
@@ -402,45 +407,34 @@ def SnowRisk():
                 letter = "0"
 
             number = field[0]
-            name = f"District {number} Section {letter}"
+            name = f"District {number} Subgroup {letter}"
             return name"""
         arcpy.CalculateField_management(snow_rank, "SNOW_RT_NAME", "route(!SNOW_RT_NBR!)", "PYTHON3", code_block)
+        logger.info("Risk Rank Complete")
 
-    # Run the above functions with logger error catching and formatting
-
-    logger = start_rotating_logging()
-
+    # Try running above scripts
     try:
-
-        logger.info("")
-        logger.info("--- Script Execution Started ---")
         initialize()
         consequence()
         probability()
         risk_minor()
         risk_rank()
-
-    except (IOError, KeyError, NameError, IndexError, TypeError, UnboundLocalError):
-        tbinfo = traceback.format_exc()
+    except (IOError, KeyError, NameError, IndexError, TypeError, UnboundLocalError, ValueError):
+        traceback_info = traceback.format_exc()
         try:
-            logger.error(tbinfo)
+            logger.info(traceback_info)
         except NameError:
-            print(tbinfo)
-
+            print(traceback_info)
     except arcpy.ExecuteError:
         try:
-            tbinfo = traceback.format_exc(2)
-            logger.error(tbinfo)
+            logger.error(arcpy.GetMessages(2))
         except NameError:
             print(arcpy.GetMessages(2))
-
     except:
-        logger.exception("Picked up an exception:")
-
+        logger.exception("Picked up an exception!")
     finally:
         try:
-            logger.info("--- Script Execution Completed ---")
-            logging.shutdown()
+            logger.info("Script Execution Complete")
         except NameError:
             pass
 
