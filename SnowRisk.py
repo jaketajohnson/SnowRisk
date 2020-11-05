@@ -230,6 +230,7 @@ def SnowRisk():
         def total_cof_scores():
             """Calculate Total COF Score using the risk assessment process"""
             logger.info("COF Totals Start")
+
             # Calculate the two weighed sections of COF
             safety_factor = "!COF_FC!+!COF_SLOPE!+!COF_AADT!+!COF_TRBL!+!COF_CRASH!"
             safety_factor_average = f"{safety_factor}/5"
@@ -308,6 +309,7 @@ def SnowRisk():
         def total_pof_scores():
             """Calculate the two weighed section using the risk assessment process"""
             logger.info("POF Totals Start")
+            arcpy.SelectLayerByAttribute_management("SnowRisk", "CLEAR_SELECTION")
             mechanical_factor = "!POF_SALT!+!POF_FLEET!"
             weather_factor = "!POF_SALT!+!POF_LANES!"
             mechanical_factor_total = 8
