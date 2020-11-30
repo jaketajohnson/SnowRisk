@@ -46,6 +46,16 @@ def ScriptLogging():
 def SnowRisk():
 
     # Logging
+    def logging_lines(name):
+        """Use this wrapper to insert a message before and after the function for logging purposes"""
+        if type(name) == str:
+            def logging_decorator(function):
+                def logging_wrapper():
+                    logger.info(f"{name} Start")
+                    function()
+                    logger.info(f"{name} Complete")
+                return logging_wrapper
+            return logging_decorator
     logger = ScriptLogging()
     logger.info("Script Execution Start")
 
@@ -67,9 +77,9 @@ def SnowRisk():
     fleet = os.path.join(risk_fgdb, "Fleet")
     salt = os.path.join(risk_fgdb, "Salt")
 
+    @logging_lines("Initialize")
     def initialize():
         """Create a feature layer to work with"""
-        logger.info("Initialize Start")
 
         # Copy over roadway information
         arcpy.FeatureClassToFeatureClass_conversion(roadway_information, risk_fgdb, "SnowRisk", "SNOW_DIST IS NOT NULL",
@@ -139,6 +149,7 @@ def SnowRisk():
         else:
             raise NameError
 
+    @logging_lines("Consequence")
     def consequence():
         """Calculate individual COF scores based off of various fields in the feature layer
 
@@ -152,7 +163,6 @@ def SnowRisk():
         Surface materials - Type of material the segment's surface is such as bituminous
         Sinuosity - How curved or winding the segment is
         """
-        logger.info("Consequence Start")
 
         # SMTD Bus Routes
         routes = [["SNOW_FID = 'NORTE'", "0"],  # 0 - Not a snow route and no bus routes
@@ -208,9 +218,9 @@ def SnowRisk():
                   ["SINUOSITY <= 1.1 AND SINUOSITY > 1.05", "3"],
                   ["SINUOSITY <= 29 AND SINUOSITY > 1.1", "4"]]
 
+        @logging_lines("Sinuosity")
         def sinuosity():
             """Calculates the sinuosity value of each segment before giving it a rank"""
-            logger.info("Sinuosity Start")
 
             # Sinuosity distance formula expressions; loop distance splits closed loops into 2 segments equal to 50% of the shape length and separately calculates the linear distance
             loop_distance = "!Shape.length!/(math.sqrt((!Shape.firstpoint.X!-!Shape!.positionAlongLine(0.5, True).firstpoint.X)**2 +" \
@@ -225,11 +235,10 @@ def SnowRisk():
             # Calculate sinuosity if it has returned null thus far
             selection_nulls = arcpy.SelectLayerByAttribute_management("SnowRisk", "NEW_SELECTION", "SINUOSITY IS NULL AND Shape_Length > 0")
             arcpy.CalculateField_management(selection_nulls, "SINUOSITY", "30", "PYTHON3")
-            logger.info("Sinuosity Complete")
 
+        @logging_lines("COF Total")
         def total_cof_scores():
             """Calculate Total COF Score using the risk assessment process"""
-            logger.info("COF Totals Start")
 
             # Calculate the two weighed sections of COF
             safety_factor = "!COF_FC!+!COF_SLOPE!+!COF_AADT!+!COF_TRBL!+!COF_CRASH!"
@@ -260,8 +269,8 @@ def SnowRisk():
         sinuosity()
         RiskProcessor("consequence", curves, "COF_SINE", "Sinuosity")
         total_cof_scores()
-        logger.info("Consequence Complete")
 
+    @logging_lines("Probability")
     def probability():
         """Calculate POF scores using fields in the feature layer; uses static travel time calculation layers
 
@@ -271,7 +280,6 @@ def SnowRisk():
         Lanes - Total number of lanes (lanes and special lanes)
 
         """
-        logger.info("Probability Start")
 
         # Salt distances layers
         salt_5 = os.path.join(salt, "Salt_5")
@@ -306,9 +314,9 @@ def SnowRisk():
                  ["LN_TOTAL = 4", "3"],
                  ["LN_TOTAL >= 5", "4"]]
 
+        @logging_lines("Total POF")
         def total_pof_scores():
             """Calculate the two weighed section using the risk assessment process"""
-            logger.info("POF Totals Start")
             arcpy.SelectLayerByAttribute_management("SnowRisk", "CLEAR_SELECTION")
             mechanical_factor = "!POF_SALT!+!POF_FLEET!"
             weather_factor = "!POF_SALT!+!POF_LANES!"
@@ -322,18 +330,16 @@ def SnowRisk():
             arcpy.CalculateFields_management("SnowRisk", "PYTHON3", [["POF", f"(round({pof}*10)/10)"],
                                                                      ["RISK", "(round((!COF!*!POF!)*10)/10)"],
                                                                      ["RISK_SAFETY", "(round((!COF_SAFETY!*!POF!)*10)/10)"]])
-            logger.info("POF Totals Complete")
 
         # Scoring
         RiskProcessor("probability", salt_domes, "POF_SALT", "Salt Domes")
         RiskProcessor("probability", fleet_garages, "POF_FLEET", "Fleet Garages")
         RiskProcessor("consequence", lanes, "POF_LANES", "Lane Counts")
         total_pof_scores()
-        logger.info("Probability Complete")
 
+    @logging_lines("Risk Minor")
     def risk_minor():
         """Create a risk scores using only minor arterials and local roads"""
-        logger.info("Risk Minor Start")
 
         arcpy.FeatureClassToFeatureClass_conversion(snow_risk, risk_fgdb, "SnowRiskMinor", "FC IN ('6', '7')")
         arcpy.MakeFeatureLayer_management(snow_risk_minor, "SnowRiskMinor")
@@ -352,11 +358,10 @@ def SnowRisk():
         arcpy.CalculateField_management(selection_minor, "COF", f"round(({cof_minor}), 2)", "PYTHON3")
         arcpy.CalculateField_management(selection_minor, "RISK", "round((!COF!*!POF!), 2)", "PYTHON3")
         arcpy.Dissolve_management("SnowRiskMinor", snow_risk_minor_dissolved, ["ROAD_NAME", "SNOW_TYPE", "SNOW_DIST"], [["COF", "MEAN"], ["POF", "MEAN"], ["RISK", "MEAN"]], "SINGLE_PART")
-        logger.info("Risk Minor Complete")
 
+    @logging_lines("Risk Rank")
     def risk_rank():
         """Rank risk scores for minor roads, descending order (highest rank = highest score)"""
-        logger.info("Risk Rank Start")
 
         # Dissolve SnowRisk
         arcpy.MakeFeatureLayer_management(snow_risk, "SnowRisk")
@@ -412,7 +417,6 @@ def SnowRisk():
             name = f"District {number} Subgroup {letter}"
             return name"""
         arcpy.CalculateField_management(snow_rank, "SNOW_RT_NAME", "route(!SNOW_RT_NBR!)", "PYTHON3", code_block)
-        logger.info("Risk Rank Complete")
 
     # Try running above scripts
     try:
