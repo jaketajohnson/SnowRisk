@@ -78,7 +78,7 @@ def SnowRisk():
     salt = os.path.join(risk_fgdb, "Salt")
 
     @logging_lines("Initialize")
-    def initialize():
+    def Initialize():
         """Create a feature layer to work with"""
 
         # Copy over roadway information
@@ -150,7 +150,7 @@ def SnowRisk():
             raise NameError
 
     @logging_lines("Consequence")
-    def consequence():
+    def ConsequenceRanking():
         """Calculate individual COF scores based off of various fields in the feature layer
 
         Fields:
@@ -271,7 +271,7 @@ def SnowRisk():
         total_cof_scores()
 
     @logging_lines("Probability")
-    def probability():
+    def ProbabilityRanking():
         """Calculate POF scores using fields in the feature layer; uses static travel time calculation layers
 
         Fields:
@@ -338,7 +338,7 @@ def SnowRisk():
         total_pof_scores()
 
     @logging_lines("Risk Minor")
-    def risk_minor():
+    def RiskMinor():
         """Create a risk scores using only minor arterials and local roads"""
 
         arcpy.FeatureClassToFeatureClass_conversion(snow_risk, risk_fgdb, "SnowRiskMinor", "FC IN ('6', '7')")
@@ -360,7 +360,7 @@ def SnowRisk():
         arcpy.Dissolve_management("SnowRiskMinor", snow_risk_minor_dissolved, ["ROAD_NAME", "SNOW_TYPE", "SNOW_DIST"], [["COF", "MEAN"], ["POF", "MEAN"], ["RISK", "MEAN"]], "SINGLE_PART")
 
     @logging_lines("Risk Rank")
-    def risk_rank():
+    def RiskRank():
         """Rank risk scores for minor roads, descending order (highest rank = highest score)"""
 
         # Dissolve SnowRisk
@@ -420,11 +420,11 @@ def SnowRisk():
 
     # Try running above scripts
     try:
-        initialize()
-        consequence()
-        probability()
-        risk_minor()
-        risk_rank()
+        Initialize()
+        ConsequenceRanking()
+        ProbabilityRanking()
+        RiskMinor()
+        RiskRank()
     except (IOError, KeyError, NameError, IndexError, TypeError, UnboundLocalError, ValueError):
         traceback_info = traceback.format_exc()
         try:
